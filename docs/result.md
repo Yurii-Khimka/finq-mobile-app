@@ -8,58 +8,53 @@
 ---
 
 ## Task
-TASK-008 — Auth screens (Login + Register) with real API
+TASK-009 — Home screen (balances + envelopes + recent transactions)
 
 ## Status
 COMPLETED
 
 ## What was done
 
-### 1. API client — auth endpoints made functional
-- Fixed `login()` in `mobile/src/api/client.ts`: backend uses JSON body with `email`/`password` (not OAuth2 form-encoded). Changed from `POST /auth/token` with form data to `POST /auth/login` with JSON body.
-- `register()` was already correct (JSON POST to `/auth/register`).
+### 1. Created format helpers (`mobile/src/utils/format.ts`)
+- `formatCurrency(amount, 'USD' | 'UAH')` → `$1,234.56` or `₴1,234.56`
+- `formatDate(dateString)` → "Today", "Yesterday", or "May 8"
+- `envelopeLabel(key)` → human-readable name ("non_mandatory" → "Non-Mandatory")
 
-### 2. Login screen (`mobile/app/(auth)/login.tsx`)
-- Email + password inputs with dark theme styling
-- "Log in" button with loading spinner, disabled when fields empty
-- Error handling: 401 → "Invalid email or password", else → "Cannot connect to server"
-- On success: saves JWT via `saveToken()`, replaces to `/(tabs)`
-- Link to register screen
-- Wrapped in `KeyboardAvoidingView` + `SafeAreaView`
+### 2. Replaced Home screen (`mobile/app/(tabs)/index.tsx`)
 
-### 3. Register screen (`mobile/app/(auth)/register.tsx`)
-- Email + password + confirm password inputs
-- Client-side validation: passwords must match
-- On success: registers, then auto-login, saves token, redirects to `/(tabs)`
-- Error handling: 409 → "Email already registered", else → "Cannot connect to server"
-- Link back to login screen
+**Section A — Total Balance header**
+- Sums all 4 envelopes, converts to USD using rate from `GET /finance/rate?currency=USD`
+- Large centered `$12,345.67` with UAH equivalent below
+- Falls back to UAH-only if rate fetch fails
 
-### 4. Auth gate (root layout)
-- Already functional from TASK-007 — no changes needed
-- Checks `isAuthenticated()` on mount, redirects accordingly
+**Section B — Envelope cards (2×2 grid)**
+- 4 cards with color-coded left border (indigo, green, amber, pink)
+- Shows envelope name, USD balance, percentage label
+- Responsive 47% width cards with 12px gap
 
-### 5. Logout in Settings (`mobile/app/(tabs)/settings.tsx`)
-- Added red "Log out" button
-- Calls `clearToken()` then `router.replace('/(auth)/login')`
+**Section C — Recent transactions (last 10)**
+- Fetches via `finance.getHistory('all', 10)`
+- Each row: category, date, amount (red for expense, green for income), envelope
+- Empty state: "No transactions yet"
 
-### 6. Auth layout update
-- Hid Stack header in `(auth)/_layout.tsx` since screens render their own title
+### 3. Data fetching
+- Fetches on mount and on screen focus (`useFocusEffect`)
+- Parallel fetch: `Promise.all([getBalances(), getHistory(), getRate()])`
+- Loading spinner while fetching
+- 401 → clears token and redirects to login
+- Other errors → inline error with retry button
+
+### 4. Pull-to-refresh
+- `RefreshControl` on `ScrollView`
 
 ## Files changed
-- `mobile/src/api/client.ts` — fixed login endpoint (JSON body, correct path)
-- `mobile/app/(auth)/_layout.tsx` — hide header
-- `mobile/app/(auth)/login.tsx` — full login screen
-- `mobile/app/(auth)/register.tsx` — full register screen
-- `mobile/app/(tabs)/settings.tsx` — added logout button
+- `mobile/src/utils/format.ts` — NEW: currency/date/envelope formatting helpers
+- `mobile/app/(tabs)/index.tsx` — replaced placeholder with full home screen
 
 ## Verification
 ```
 cd mobile && npx tsc --noEmit  → 0 errors
 ```
 
-## Notes
-- Backend login uses `LoginRequest` (JSON with `email`/`password`), not `OAuth2PasswordRequestForm`. The plan's note about form-encoding was incorrect — fixed based on actual `backend/routers/auth.py`.
-- Register endpoint returns a token directly, but auto-login is done separately for consistency with the plan.
-
 ## Changelog entry
-- **TASK-008:** Login and register screens with JWT auth, logout button, API client fix
+- **TASK-009:** Home screen with live balances, envelope cards, recent transactions, pull-to-refresh
