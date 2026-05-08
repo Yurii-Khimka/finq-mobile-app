@@ -8,134 +8,151 @@
 
 ## Active Task
 
-**TASK-012 — History screen (grouped by day, filters, swipe-to-delete)**
-Goal: Build the transaction history screen with day-grouped list, envelope/month filters, and swipe-to-delete with balance reversal.
+**TASK-013 — Audit screen (health signal, burn rate, breaches, sustainability, anomalies)**
+Goal: Build the Audit tab screen showing financial health overview, burn rate projection, breach details, per-envelope sustainability, spending anomalies, and AI advisor insight.
 
 ---
 
 ## Context
 
-The backend has `GET /finance/history?filter=all|current|MM&limit=N` returning `TransactionResponse[]` sorted by date descending. Also `DELETE /finance/transactions/{id}` which reverses the balance effect and returns updated balances.
+Four backend endpoints are ready and the mobile API client already has methods for all of them:
 
-Home screen (TASK-009) shows last 10 transactions in a flat list. This screen shows the full history with grouping and filtering.
+| Endpoint | Client method | Returns |
+|---|---|---|
+| `GET /finance/audit` | `finance.getAudit()` | `AuditResponse` — health signal, burn rate, breaches, days to zero, safe daily limit |
+| `GET /finance/sustainability` | `finance.getSustainability()` | `SustainabilityResponse` — per-envelope burn rates and days to zero |
+| `GET /finance/anomalies` | `finance.getAnomalies()` | `AnomalyItem[]` — categories with unusual spending spikes |
+| `GET /finance/advisor` | `finance.getAdvisor()` | `AdvisorResponse` — prose summary combining all insights |
+
+The audit tab already exists as a placeholder at `mobile/app/(tabs)/audit.tsx` with icon `shield-checkmark-outline` in the tab layout.
 
 ---
 
 ## What Must NOT Be Changed
 
 - Do not modify anything in `backend/`
-- Do not modify Home, Expense, Income, or auth screens
+- Do not modify Home, Expense, Income, or History screens
 - Do not add SQLite or offline logic
+- Do not change tab layout or navigation
 
 ---
 
 ## Read First
 
-- `mobile/src/api/client.ts` — `finance.getHistory()`, `finance.removeTransaction()`
-- `mobile/src/types/finance.ts` — `TransactionResponse`
-- `mobile/src/tokens/index.ts` — design tokens
+- `mobile/src/api/client.ts` — `finance.getAudit()`, `finance.getSustainability()`, `finance.getAnomalies()`, `finance.getAdvisor()`
+- `mobile/src/types/finance.ts` — `AuditResponse`, `SustainabilityResponse`, `AnomalyItem`, `AdvisorResponse`
+- `mobile/src/tokens/index.ts` — design tokens, colours
 - `mobile/src/utils/format.ts` — `formatCurrency()`, `formatDate()`
-- `mobile/app/(tabs)/history.tsx` — current placeholder (replace entirely)
+- `mobile/app/(tabs)/audit.tsx` — current placeholder (replace entirely)
+- `mobile/app/(tabs)/index.tsx` — reference for data fetching pattern, envelope colours, error/loading states
 
 ---
 
 ## Step-by-step
 
-### 1. Replace History screen (`app/(tabs)/history.tsx`)
+### 1. Replace Audit screen (`app/(tabs)/audit.tsx`)
 
-#### Filter bar (top, horizontal scroll)
+Single scrollable screen. Fetch all four endpoints on mount (parallel). Show loading spinner while fetching. Pull-to-refresh to re-fetch all.
 
-- Pill buttons: "All" | "This Month" | month names ("Jan", "Feb", ... for months that have data)
-- Envelope filter: "All Envelopes" | "Mandatory" | "Non-Mandatory" | "Investments" | "Dreams"
-- Two rows of pills, or a single row with a second dropdown for envelope
-- Active pill: `colors.primary` background, white text
-- Inactive pill: `colors.surface` background, `colors.textSecondary` text
+### 2. Health Signal card (top, prominent)
 
-#### Transaction list (SectionList, grouped by day)
+- Large badge showing `health_signal`: green "Healthy", yellow "Warning", red "Critical"
+- Use `colors.success` / `colors.warning` / `colors.danger` for badge background
+- Below badge: spendable balance (large text), "Safe to spend ₴X/day" (subtitle)
+- Show days remaining in month
 
-- Section header: date string — "Today", "Yesterday", "May 7, 2026", etc.
-- Each row shows:
-  - Left: category name (bold), envelope name (small, grey)
-  - Right: amount with sign and color (red expense, green income), time (small, grey)
-  - If FX transaction: show original amount below UAH amount (e.g. "$50.00" in grey)
-- Swipe left to reveal red "Delete" button
+### 3. Burn Rate section
 
-#### Empty state
+- Daily burn rate: "₴X/day"
+- Projection line: "At this rate, balance lasts X more days" (from `days_to_zero`)
+  - If `days_to_zero` is null (no spending): "No spending yet this month"
+  - If `days_to_zero >= days_remaining`: green text, "You're on track"
+  - If `days_to_zero < days_remaining`: red text, "Overspending — will run out before month ends"
+- Total spent this month: "₴X spent so far"
 
-- "No transactions" + icon when list is empty after filtering
+### 4. Breach Summary section
 
-### 2. Day grouping logic
+- If `breach_count === 0`: show a green "No breaches this month" message, skip the rest
+- If breaches exist:
+  - Header: "X breaches totalling ₴Y"
+  - Breakdown by envelope (only show envelopes with non-zero borrowed amounts):
+    - Coloured dot + envelope label + amount
+    - Use envelope colours from Home screen: mandatory=`colors.primary`, non_mandatory=`colors.success`, investments=`colors.warning`, dreams=`#EC4899`
+  - Top breaches list (up to 5):
+    - Each row: date, category name, total amount, breach amount
+    - Show "from" sources (e.g. "₴50 from Mandatory, ₴30 from Dreams")
 
-- Group `TransactionResponse[]` by date (extract `YYYY-MM-DD` from the date string)
-- Sort groups descending (newest day first)
-- Within each group, transactions are already sorted by API
+### 5. Sustainability section (per-envelope cards)
 
-### 3. Filters
+- Four cards, one per envelope (mandatory, non_mandatory, investments, dreams)
+- Each card shows:
+  - Envelope name + coloured left border
+  - Daily burn rate for that envelope
+  - Days to zero (or "Safe" if null/infinite)
+  - Safe daily limit for rest of month
+- Only show mandatory and non_mandatory with full detail; investments and dreams can be simpler (they rarely have direct expenses)
 
-- "All" → `finance.getHistory('all')`
-- "This Month" → `finance.getHistory('current')`
-- Month pills → `finance.getHistory('MM')` where MM is month number
-- Envelope filter: client-side filter after fetch (API doesn't support envelope filter)
-- Re-fetch when date filter changes, re-filter when envelope filter changes
+### 6. Anomalies section
 
-### 4. Swipe-to-delete
+- If empty array: hide section entirely (no "No anomalies" message needed)
+- If anomalies exist:
+  - Header: "Spending Spikes"
+  - Each row: category name, "X.Xx normal" (ratio), last 7 days amount vs average
+  - Sort by ratio descending (highest spike first)
+  - Use `colors.warning` for the ratio badge
 
-Use React Native's built-in gesture approach — no external swipe library needed:
+### 7. Advisor section (bottom)
 
-Create a `SwipeableRow` wrapper component (`mobile/src/components/SwipeableRow.tsx`):
-- Uses `Animated` + `PanResponder` for horizontal swipe
-- Swipe left reveals a red "Delete" area
-- Tap delete → confirmation Alert ("Delete this transaction? This will reverse the balance change.")
-- On confirm → `finance.removeTransaction(id)`
-- On success → remove from local state, no full re-fetch needed
-- On error → show error, snap row back
+- Card with `colors.surface` background
+- Header: "Insight" (or similar)
+- Body: `advisor.text` as plain text, `fontSize.sm`
+- If advisor fetch fails, hide section silently
 
-### 5. Pull-to-refresh
+### 8. Error and loading states
 
-- `RefreshControl` on the `SectionList`
-- Re-fetches with current filter
-
-### 6. Summary bar (optional, above list)
-
-- Shows count: "42 transactions" and total: "₴12,345.00 spent"
-- Only counts expenses in the total
-- Updates when filters change
+- Loading: centred spinner (same pattern as Home screen)
+- Error: inline error message with retry button
+- 401: redirect to login (same pattern as other screens)
+- Individual section failures: hide that section, don't break the whole screen
 
 ---
 
 ## UI spec
 
-Filter pills:
-- Height 32, rounded 16 (pill shape), padding horizontal 12
-- Active: `colors.primary` bg, white text
-- Inactive: `colors.surface` bg, `colors.textSecondary` text, `colors.border` border
+Health signal badge:
+- Height 40, rounded 20 (pill), padding horizontal 20
+- Text: white, `fontSize.lg`, bold
+- Background: `colors.success` / `colors.warning` / `colors.danger`
 
-Section header:
-- `fontSize.sm`, `colors.textSecondary`, bold
-- Padding: 16 horizontal, 8 vertical
-- Sticky header (SectionList default)
+Section cards:
+- `colors.surface` background, rounded 12, padding 16, marginBottom 12
+- Section title: `fontSize.md`, `colors.text`, fontWeight 600, marginBottom 8
 
-Transaction row:
-- `colors.surface` background, rounded 8, padding 12, marginBottom 4
-- Category: `fontSize.md`, `colors.text`, fontWeight 600
-- Envelope: `fontSize.xs`, `colors.textSecondary`
-- Amount: `fontSize.md`, `colors.danger` (expense) or `colors.success` (income)
-- Time: `fontSize.xs`, `colors.textSecondary`
+Envelope cards (sustainability):
+- Row layout, coloured left border (4px wide, envelope colour)
+- `colors.surface` background, rounded 8, padding 12
+- Envelope name: `fontSize.sm`, bold
+- Burn rate / days to zero: `fontSize.xs`, `colors.textSecondary`
 
-Delete button (swipe reveal):
-- Background: `colors.danger`
-- Text: white, "Delete"
-- Width: 80
+Anomaly rows:
+- Category: `fontSize.sm`, `colors.text`
+- Ratio badge: `colors.warning` background, white text, rounded pill, `fontSize.xs`
+- Amounts: `fontSize.xs`, `colors.textSecondary`
+
+Advisor card:
+- Subtle background, `colors.surface`
+- Text: `fontSize.sm`, `colors.textSecondary`, lineHeight 20
 
 ---
 
 ## Edge cases
 
-- No transactions at all → empty state
-- Filter returns no results → "No transactions match filters"
-- Delete last transaction in a day group → remove entire section
-- Delete while offline (401) → redirect to login
-- Very long history → SectionList virtualizes automatically, no pagination needed for MVP
+- No spending this month → burn rate 0, days to zero null → "No spending yet"
+- No breaches → green confirmation, skip breach list
+- No anomalies → hide section
+- Advisor returns error → hide advisor section
+- All endpoints fail → show error state with retry
+- Very large breach amounts → format with `formatCurrency()`
 
 ---
 
@@ -146,19 +163,18 @@ cd mobile && npx tsc --noEmit   # 0 errors
 ```
 
 Manual test:
-1. Navigate to History tab → see grouped transaction list
-2. Filter by "This Month" → only current month shows
-3. Filter by envelope → list filters client-side
-4. Swipe left on a transaction → delete button appears
-5. Confirm delete → transaction removed, balance updated
-6. Pull to refresh → list re-fetches
+1. Navigate to Audit tab → see health signal, burn rate, breaches
+2. Pull to refresh → data re-fetches
+3. If breaches exist → see breach list with envelope breakdown
+4. If anomalies exist → see spending spikes section
+5. Advisor text appears at bottom
 
 ---
 
 ## Git
 
-Branch: `feat/task-012-history-screen`
-Commit message: `feat(mobile): history screen with filters, day groups, and swipe-to-delete (#012)`
+Branch: `feat/task-013-audit-screen`
+Commit message: `feat(mobile): audit screen with health signal, burn rate, breaches, and sustainability (#013)`
 
 ---
 
