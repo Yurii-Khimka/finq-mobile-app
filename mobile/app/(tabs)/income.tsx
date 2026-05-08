@@ -12,6 +12,7 @@ import { colors, fontSize, spacing } from '../../src/tokens';
 import { finance } from '../../src/api/client';
 import { clearToken } from '../../src/store/auth';
 import NumPad from '../../src/components/NumPad';
+import { syncBalances } from '../../src/db/sync';
 
 const CURRENCIES = ['UAH', 'USD', 'EUR'] as const;
 type Currency = (typeof CURRENCIES)[number];
@@ -48,6 +49,7 @@ export default function IncomeScreen() {
     setSubmitting(true);
     try {
       await finance.addIncome({ amount: numericAmount, currency });
+      syncBalances().catch(() => {});
       router.navigate('/(tabs)');
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : String(e);

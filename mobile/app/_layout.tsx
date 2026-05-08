@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import { Slot, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { isAuthenticated } from '../src/store/auth';
+import { initDB } from '../src/db';
+import { syncAll } from '../src/db/sync';
 
 export default function RootLayout() {
   const [ready, setReady] = useState(false);
@@ -10,9 +12,13 @@ export default function RootLayout() {
   const router = useRouter();
 
   useEffect(() => {
+    initDB();
     isAuthenticated().then((auth) => {
       setLoggedIn(auth);
       setReady(true);
+      if (auth) {
+        syncAll().catch(() => { /* offline, use cached data */ });
+      }
     });
   }, []);
 

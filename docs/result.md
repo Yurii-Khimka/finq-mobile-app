@@ -8,46 +8,57 @@
 ---
 
 ## Task
-TASK-014 — Settings screen with display currency selector, logout, and app info
+TASK-015 — SQLite local cache (read path)
 
 ## Status
 COMPLETED
 
 ## What was done
 
-### Settings screen (`mobile/app/(tabs)/settings.tsx`)
+### 1. New dependency
+- `expo-sqlite` installed (with `--legacy-peer-deps` due to React version conflict)
 
-Replaced placeholder with full settings screen with grouped sections.
+### 2. Database module (`mobile/src/db/index.ts`)
+- Opens `finq.db` via `SQLite.openDatabaseSync()`
+- `initDB()` creates 5 tables: envelopes, transactions, categories, config, cache_meta
 
-**Display Currency section:**
-- Segmented control with UAH (₴), USD ($), EUR (€)
-- Fetches current config from `finance.getConfig()` on mount
-- On change: optimistically updates UI, calls `finance.updateConfig()`
-- On error: reverts selection, shows Alert
-- Loading indicator while saving
+### 3. Data access layer (`mobile/src/db/queries.ts`)
+- `getBalances()` / `upsertBalances()` — read/write envelope balances
+- `getTransactions(filter?)` / `upsertTransactions()` / `deleteTransaction()` — with month filter support
+- `getCategories()` / `upsertCategories()` — full replace on sync
+- `getConfig()` / `upsertConfig()` — key-value for base_currency
+- `getCacheTimestamp()` / `setCacheTimestamp()` — track last sync time
+- `clearAllData()` — wipes all tables on logout
 
-**Account section:**
-- "Log Out" button with `colors.danger` background
-- Confirmation Alert: "Log out of finQ?" with Cancel / Log Out
-- On confirm: `clearToken()` → redirect to login
+### 4. Sync module (`mobile/src/db/sync.ts`)
+- `syncBalances()`, `syncHistory()`, `syncCategories()`, `syncConfig()` — fetch from server, upsert into SQLite
+- `syncAll()` — parallel sync of all data types
 
-**About section:**
-- Version: 1.0.0 (static)
-- Build: MVP (static)
-- Row style with border separator
+### 5. Root layout (`mobile/app/_layout.tsx`)
+- Calls `initDB()` on app start
+- Calls `syncAll()` after auth check passes (non-blocking)
 
-**Danger Zone section:**
-- "Reset All Data" row — greyed out (opacity 0.5)
-- On press: "Coming soon" Alert
-- Section header in `colors.danger`
+### 6. Screen rewiring
 
-**General:**
-- Pull-to-refresh re-fetches config
-- 401 → login redirect
-- Proper section grouping with uppercase headers, letterSpacing 1
+**Home:** reads SQLite first, syncs server in background, error only if both fail
+**History:** reads SQLite first, syncs server; delete updates both server and SQLite
+**Expense:** reads categories from SQLite; syncs balances+history after submission
+**Income:** syncs balances after submission
+**Audit:** no caching (computed server-side); graceful "requires internet" message
+**Settings:** reads config from SQLite; updates SQLite on currency change; clears all data on logout
 
 ## Files changed
-- `mobile/app/(tabs)/settings.tsx` — replaced placeholder with full settings screen
+- `mobile/src/db/index.ts` — NEW
+- `mobile/src/db/queries.ts` — NEW
+- `mobile/src/db/sync.ts` — NEW
+- `mobile/app/_layout.tsx` — EDIT
+- `mobile/app/(tabs)/index.tsx` — EDIT
+- `mobile/app/(tabs)/history.tsx` — EDIT
+- `mobile/app/(tabs)/expense.tsx` — EDIT
+- `mobile/app/(tabs)/income.tsx` — EDIT
+- `mobile/app/(tabs)/audit.tsx` — EDIT
+- `mobile/app/(tabs)/settings.tsx` — EDIT
+- `mobile/package.json` — added expo-sqlite
 
 ## Verification
 ```
@@ -55,4 +66,4 @@ cd mobile && npx tsc --noEmit  → 0 errors
 ```
 
 ## Changelog entry
-- **TASK-014:** Settings screen with currency selector, logout confirmation, app info, and danger zone placeholder
+- **TASK-015:** SQLite local cache with offline-first reads, server background sync, and cache clearing on logout

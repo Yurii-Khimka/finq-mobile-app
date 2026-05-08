@@ -14,6 +14,8 @@ import { finance } from '../../src/api/client';
 import { clearToken } from '../../src/store/auth';
 import type { BalancesResponse, TransactionResponse } from '../../src/types/finance';
 import { formatCurrency, formatDate, envelopeLabel } from '../../src/utils/format';
+import { getBalances as getLocalBalances, getTransactions as getLocalTransactions } from '../../src/db/queries';
+import { syncBalances, syncHistory } from '../../src/db/sync';
 
 const ENVELOPE_META: Record<string, { color: string; pct: string }> = {
   mandatory: { color: colors.primary, pct: '50%' },
@@ -35,14 +37,23 @@ export default function HomeScreen() {
 
   const fetchData = useCallback(async () => {
     setError('');
+
+    // Read local cache first
+    const localBal = getLocalBalances();
+    const localTx = getLocalTransactions('all');
+    if (localBal) setBalances(localBal);
+    if (localTx.length > 0) setTransactions(localTx.slice(0, 10));
+    if (localBal || localTx.length > 0) setLoading(false);
+
+    // Then sync from server
     try {
       const [bal, hist, rate] = await Promise.all([
-        finance.getBalances(),
-        finance.getHistory('all', 10),
+        syncBalances(),
+        syncHistory('all'),
         finance.getRate('USD').catch(() => null),
       ]);
       setBalances(bal);
-      setTransactions(hist);
+      setTransactions(hist.slice(0, 10));
       setUsdRate(rate?.rate ?? null);
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : String(e);
@@ -51,7 +62,9 @@ export default function HomeScreen() {
         router.replace('/(auth)/login');
         return;
       }
-      setError('Failed to load data');
+      if (!localBal && getLocalBalances() === null) {
+        setError('Failed to load data');
+      }
     } finally {
       setLoading(false);
       setRefreshing(false);

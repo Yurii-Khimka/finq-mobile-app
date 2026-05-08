@@ -70,7 +70,7 @@ export default function AuditScreen() {
         router.replace('/(auth)/login');
         return;
       }
-      setError('Failed to load audit data');
+      setError('Audit data requires internet connection');
     } finally {
       setLoading(false);
       setRefreshing(false);
