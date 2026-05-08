@@ -8,133 +8,111 @@
 
 ## Active Task
 
-**TASK-009 — Home screen (balances + envelopes + recent transactions)**
-Goal: Build the first real data screen. Shows total balance, 4 envelope cards, and the 10 most recent transactions. Fetches live data from the backend API.
+**TASK-011 — Add Income flow**
+Goal: Build the income entry screen. Reuses the NumPad from TASK-010. Simpler than expense — no categories, no impact preview. Income is distributed across envelopes by the backend waterfall.
 
 ---
 
 ## Context
 
-Auth works (TASK-008). The API client is fully wired with typed methods for all 19 endpoints. The Home tab (`app/(tabs)/index.tsx`) is a placeholder. This task replaces it with a real screen that the user sees after login.
+The backend endpoint `POST /finance/income` accepts `{ amount, currency }` and distributes the amount across all 4 envelopes by their percentages (50/30/10/10). Returns updated `BalancesResponse`. Optional FX conversion if currency ≠ UAH.
 
-The backend stores amounts in UAH internally. Display currency is USD (session.md decision). Use `GET /finance/rate?currency=USD` to convert. Show UAH as fallback if rate fetch fails.
+The NumPad component (`src/components/NumPad.tsx`) is already built and reusable.
 
 ---
 
 ## What Must NOT Be Changed
 
 - Do not modify anything in `backend/`
-- Do not modify auth screens or auth logic
-- Do not add SQLite or offline caching yet
-- Do not modify the tab navigator layout
+- Do not modify NumPad component, Home screen, Expense screen, or auth
+- Do not add SQLite or offline logic
 
 ---
 
 ## Read First
 
-- `mobile/src/api/client.ts` — API methods: `finance.getBalances()`, `finance.getHistory()`, `finance.getRate()`
-- `mobile/src/types/finance.ts` — `BalancesResponse`, `TransactionResponse`, `RateResponse`
+- `mobile/src/components/NumPad.tsx` — reusable NumPad (reuse as-is)
+- `mobile/src/api/client.ts` — `finance.addIncome()`
+- `mobile/src/types/finance.ts` — `IncomeRequest`, `BalancesResponse`
 - `mobile/src/tokens/index.ts` — design tokens
-- `mobile/app/(tabs)/index.tsx` — current placeholder (replace entirely)
+- `mobile/src/utils/format.ts` — formatting helpers
+- `mobile/app/(tabs)/income.tsx` — current placeholder (replace entirely)
 
 ---
 
 ## Step-by-step
 
-### 1. Replace Home screen (`app/(tabs)/index.tsx`)
+### 1. Replace Income screen (`app/(tabs)/income.tsx`)
 
-Build a `ScrollView`-based screen with three sections:
+Single-state screen (no confirmation step — income doesn't need impact preview).
 
-#### Section A — Total Balance header
+```
+[SafeAreaView]
+  [Amount display - top area]
+    "₴0" → updates via NumPad
+    [Currency toggle: UAH | USD | EUR - pills below amount]
 
-- Sum of all 4 envelopes (from `BalancesResponse`)
-- Display in USD: `total_uah / usd_rate`
-- Format: `$12,345.67` large centered text
-- Below it: small grey text showing UAH equivalent `₴456,789.00`
-- If rate fetch fails, show UAH only
+  [Distribution preview - middle area]
+    Shows how income will be split:
+    "Mandatory   50%  →  ₴5,000.00"
+    "Non-Mandatory 30%  →  ₴3,000.00"
+    "Investments  10%  →  ₴1,000.00"
+    "Dreams      10%  →  ₴1,000.00"
+    Updates live as amount changes
 
-#### Section B — Envelope cards (horizontal row or 2×2 grid)
+  [NumPad - bottom area]
+    (reuse NumPad component)
+    [Add Income button - full width, green (colors.success), disabled until amount > 0]
+```
 
-4 cards, one per envelope:
-- Envelope name (human-readable: "Mandatory", "Non-Mandatory", "Investments", "Dreams")
-- Balance in USD (converted)
-- Percentage label (50%, 30%, 10%, 10%)
-- Color-coded left border or accent:
-  - mandatory → `colors.primary` (indigo)
-  - non_mandatory → `colors.success` (green)
-  - investments → `colors.warning` (amber)
-  - dreams → pink/purple (`#EC4899`)
+### 2. Distribution preview
 
-Use a 2×2 grid layout (2 cards per row, equal width).
+- Calculate split on every amount change: `amount * percentage / 100` for each envelope
+- Display with envelope colors (same as Home screen cards)
+- Format amounts with currency symbol matching the selected currency
+- When amount is 0 → show dashes or "₴0.00" for each
 
-#### Section C — Recent transactions (last 10)
+### 3. Submit flow
 
-- Call `finance.getHistory('all', 10)`
-- Each row: date, category, amount, envelope badge
-- EXPENSE amounts in red with minus sign, INCOME in green with plus sign
-- Amount in UAH (don't convert transactions — too many, keep it simple)
-- Format date as "May 8" or "Today" / "Yesterday" where applicable
-- If no transactions, show empty state: "No transactions yet"
-
-### 2. Data fetching
-
-- Fetch on screen mount (useEffect) and on screen focus (useCallback with useFocusEffect from expo-router)
-- Parallel fetch: `Promise.all([getBalances(), getHistory('all', 10), getRate('USD')])`
-- Show loading spinner while fetching
-- On 401 error → clear token and redirect to login (token expired)
-- On other errors → show inline error with retry button
-
-### 3. Pull-to-refresh
-
-- Add `RefreshControl` to the `ScrollView`
-- On pull, re-fetch all three endpoints
-
-### 4. Helpers
-
-Create `mobile/src/utils/format.ts`:
-
-- `formatCurrency(amount: number, currency: 'USD' | 'UAH')` → `$1,234.56` or `₴1,234.56`
-- `formatDate(dateString: string)` → "Today", "Yesterday", or "May 8"
-- `envelopeLabel(key: string)` → human-readable name ("non_mandatory" → "Non-Mandatory")
+- On "Add Income" tap → call `finance.addIncome({ amount, currency })`
+- Loading state on button while submitting
+- Double-tap protection
+- On success: show brief success indicator, navigate to Home tab
+- On 502 (FX rate fail): show "Exchange rate unavailable"
+- On 401: redirect to login
 
 ---
 
 ## UI spec
 
-```
-[ScrollView - background: colors.background, RefreshControl]
+Amount display:
+- `fontSize.xxl` + 8 (make it even larger, ~44pt), `colors.success`, bold, centered
+- Currency symbol prefix (₴, $, €)
 
-  [Total Balance Section - centered, paddingVertical: 24]
-    "$12,345.67"  — fontSize.xxl, colors.text, bold
-    "₴456,789.00" — fontSize.sm, colors.textSecondary
+Distribution preview cards:
+- 4 rows, full width, `colors.surface` background, rounded 8, padding 12
+- Left: envelope name + percentage in `colors.textSecondary`
+- Right: calculated amount in `colors.text`
+- Colored left border (same colors as Home envelope cards)
+- Gap: 8px between rows
 
-  [Envelope Grid - 2×2, padding: 16, gap: 12]
-    [Card - surface bg, rounded 12, padding 16, colored left border 3px]
-      "Mandatory"     — fontSize.sm, colors.textSecondary
-      "$6,172.83"     — fontSize.lg, colors.text, bold
-      "50%"           — fontSize.xs, colors.textSecondary
+Currency toggle:
+- Same style as expense screen pills
+- Default: UAH
 
-  [Recent Transactions - padding: 16]
-    "Recent"          — fontSize.lg, colors.text, bold, marginBottom 12
-    [Transaction Row - surface bg, rounded 8, padding 12, marginBottom 8]
-      [Left]
-        "Groceries"   — fontSize.md, colors.text
-        "Today"       — fontSize.xs, colors.textSecondary
-      [Right]
-        "-₴250.00"    — fontSize.md, colors.danger (or colors.success for income)
-        "mandatory"   — fontSize.xs, colors.textSecondary
-```
-
-No external UI library — plain RN components.
+Add Income button:
+- Full width, height 52, rounded 12
+- `colors.success` background (green — distinguishes from expense's indigo)
+- Disabled: `colors.surfaceAlt`, `colors.textSecondary`
 
 ---
 
 ## Edge cases
 
-- New user with zero balances → show $0.00, empty transaction list
-- Rate fetch fails → show UAH amounts, hide USD
-- Token expired (401) → redirect to login
-- Slow network → loading spinner, then content
+- Amount "0" → button disabled, distribution shows ₴0.00
+- FX currency + rate failure → error message, don't submit
+- Very large income → numbers format correctly with commas
+- Quick double-tap → prevented
 
 ---
 
@@ -144,19 +122,19 @@ No external UI library — plain RN components.
 cd mobile && npx tsc --noEmit   # 0 errors
 ```
 
-Manual test (backend running):
-1. Login → Home screen loads with real balances
-2. Envelope cards show correct amounts
-3. Recent transactions list shows last 10
-4. Pull down → data refreshes
-5. Navigate away and back → data re-fetches
+Manual test:
+1. Navigate to Income tab → see NumPad + distribution preview
+2. Type "10000" → distribution shows 5000/3000/1000/1000
+3. Toggle to USD → distribution recalculates display
+4. Tap "Add Income" → submits, navigates to Home, balances updated
+5. Check envelope cards on Home → amounts increased correctly
 
 ---
 
 ## Git
 
-Branch: `feat/task-009-home-screen`
-Commit message: `feat(mobile): home screen with balances, envelopes, and transactions (#009)`
+Branch: `feat/task-011-income-screen`
+Commit message: `feat(mobile): income flow with numpad and distribution preview (#011)`
 
 ---
 
