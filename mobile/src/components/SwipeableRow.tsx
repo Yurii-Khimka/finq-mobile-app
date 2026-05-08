@@ -1,4 +1,5 @@
 import { useMemo, useRef, type ReactNode } from 'react';
+import * as Haptics from 'expo-haptics';
 import {
   View,
   Text,
@@ -49,6 +50,7 @@ export default function SwipeableRow({ children, onDelete }: SwipeableRowProps) 
   ).current;
 
   function handleDelete() {
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
     Alert.alert(
       'Delete transaction',
       'This will reverse the balance change. Continue?',

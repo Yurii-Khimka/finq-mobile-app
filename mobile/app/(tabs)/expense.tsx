@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import * as Haptics from 'expo-haptics';
 import {
   View,
   Text,
@@ -102,6 +103,7 @@ export default function ExpenseScreen() {
   }, {});
 
   async function handleConfirm() {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setError('');
     setLoadingImpact(true);
     try {
@@ -127,6 +129,7 @@ export default function ExpenseScreen() {
   }
 
   async function handleSubmit() {
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     setError('');
     setSubmitting(true);
     try {
@@ -175,6 +178,7 @@ export default function ExpenseScreen() {
   }
 
   function handleCancel() {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setMode('input');
     setImpact(null);
     setError('');
@@ -379,7 +383,7 @@ export default function ExpenseScreen() {
             <TouchableOpacity
               key={c}
               style={[styles.currencyPill, currency === c && styles.currencyPillActive]}
-              onPress={() => setCurrency(c)}
+              onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setCurrency(c); }}
             >
               <Text
                 style={[
@@ -412,7 +416,7 @@ export default function ExpenseScreen() {
                       styles.chip,
                       selectedCategory === cat.name && styles.chipSelected,
                     ]}
-                    onPress={() => setSelectedCategory(cat.name)}
+                    onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setSelectedCategory(cat.name); }}
                   >
                     <Ionicons
                       name={getCategoryIcon(cat.name)}

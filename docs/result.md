@@ -6,31 +6,19 @@
 
 ---
 
-## TASK-019 — App icon and splash screen
+## TASK-020 — Biometric authentication (Face ID / Touch ID)
 
 ### Status: DONE
 
-### Pre-step
-
-- Committed TASK-018 on `feat/task-018-category-icons`
-- Pushed and created PR: Yurii-Khimka/finq-mobile-app#14
-- Created new branch `feat/task-019-app-icon-splash`
-
 ### Changes
 
-1. **`mobile/scripts/generate-icons.js`** — New Node.js script using `canvas` package to generate all four icon assets programmatically. Draws bold indigo "Q" lettermark on dark `#0A0A0A` background. Splash icon has transparent background with "finQ" label.
+1. **`expo-local-authentication`** — Installed as dependency. Added to `app.json` plugins.
 
-2. **`mobile/assets/icon.png`** — 1024x1024, dark bg + indigo Q (25 KB)
+2. **`mobile/app.json`** — Added `NSFaceIDUsageDescription` in `ios.infoPlist` for Face ID permission. Added `expo-local-authentication` to plugins array.
 
-3. **`mobile/assets/adaptive-icon.png`** — 1024x1024, same as icon (25 KB)
+3. **`mobile/app/_layout.tsx`** — Added biometric lock gate. On launch, if user is logged in and `biometric_lock` config is `'true'`, prompts biometric auth before showing tabs. Lock screen shows "finQ" title, lock icon, and unlock button. Failed auth shows error with "Try Again". Auth routing paused while locked.
 
-4. **`mobile/assets/splash-icon.png`** — 200x200, transparent bg + indigo Q + "finQ" label (4 KB)
-
-5. **`mobile/assets/favicon.png`** — 48x48, dark bg + indigo Q (1 KB)
-
-6. **`canvas`** added as devDependency for icon generation.
-
-7. **`mobile/app.json`** — No changes needed. Already pointed to correct files with `backgroundColor: "#0A0A0A"`.
+4. **`mobile/app/(tabs)/settings.tsx`** — Added SECURITY section between THEME and DISPLAY CURRENCY. Shows "Biometric Lock" row with Switch toggle. Only visible if device has biometric hardware and enrollment. Toggling ON prompts biometric verification first. Persists to SQLite via `setConfigValue('biometric_lock', ...)`.
 
 ### Verification
 
@@ -41,5 +29,6 @@ cd mobile && npx tsc --noEmit   # 0 errors
 ### Not changed
 
 - Backend — untouched
-- Screen logic, app behaviour — untouched
-- Theme system — untouched (splash always uses dark bg since theme loads after)
+- JWT auth flow, login/register screens — untouched
+- Offline behaviour, sync logic — untouched
+- Biometric is a local gate only — does not replace server auth

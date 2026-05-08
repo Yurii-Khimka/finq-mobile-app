@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import * as Haptics from 'expo-haptics';
 import {
   View,
   Text,
@@ -268,7 +269,7 @@ export default function HistoryScreen() {
           <TouchableOpacity
             key={p.value}
             style={[styles.pill, dateFilter === p.value && styles.pillActive]}
-            onPress={() => setDateFilter(p.value)}
+            onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setDateFilter(p.value); }}
           >
             <Text style={[styles.pillText, dateFilter === p.value && styles.pillTextActive]}>
               {p.label}
@@ -288,7 +289,7 @@ export default function HistoryScreen() {
           <TouchableOpacity
             key={ef}
             style={[styles.pill, envelopeFilter === ef && styles.pillActive]}
-            onPress={() => setEnvelopeFilter(ef)}
+            onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setEnvelopeFilter(ef); }}
           >
             <Text style={[styles.pillText, envelopeFilter === ef && styles.pillTextActive]}>
               {ENVELOPE_LABELS[ef]}

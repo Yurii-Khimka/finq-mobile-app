@@ -1,5 +1,6 @@
-export function formatCurrency(amount: number, currency: 'USD' | 'UAH'): string {
-  const symbol = currency === 'USD' ? '$' : '₴';
+export function formatCurrency(amount: number, currency: 'USD' | 'UAH' | 'EUR'): string {
+  const symbols: Record<string, string> = { USD: '$', UAH: '₴', EUR: '€' };
+  const symbol = symbols[currency] ?? currency;
   const formatted = Math.abs(amount)
     .toFixed(2)
     .replace(/\B(?=(\d{3})+(?!\d))/g, ',');

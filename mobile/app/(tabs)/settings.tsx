@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import * as Haptics from 'expo-haptics';
 import {
   View,
   Text,
   ScrollView,
   TouchableOpacity,
+  Switch,
   StyleSheet,
   Alert,
   ActivityIndicator,
@@ -11,11 +13,12 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
+import * as LocalAuthentication from 'expo-local-authentication';
 import { fontSize, spacing, type ThemeName } from '../../src/tokens';
 import { useTheme } from '../../src/context/ThemeContext';
 import { finance } from '../../src/api/client';
 import { clearToken } from '../../src/store/auth';
-import { getConfig as getLocalConfig, upsertConfig, clearAllData } from '../../src/db/queries';
+import { getConfig as getLocalConfig, upsertConfig, clearAllData, getConfigValue, setConfigValue } from '../../src/db/queries';
 import { syncConfig } from '../../src/db/sync';
 
 const CURRENCIES = [
@@ -39,6 +42,8 @@ export default function SettingsScreen() {
   const [currency, setCurrency] = useState<Currency>('UAH');
   const [saving, setSaving] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [biometricAvailable, setBiometricAvailable] = useState(false);
+  const [biometricEnabled, setBiometricEnabled] = useState(false);
 
   const fetchConfig = useCallback(async () => {
     // Read local cache first
@@ -60,7 +65,33 @@ export default function SettingsScreen() {
 
   useEffect(() => {
     fetchConfig();
+    // Check biometric availability
+    (async () => {
+      const hasHardware = await LocalAuthentication.hasHardwareAsync();
+      const isEnrolled = await LocalAuthentication.isEnrolledAsync();
+      setBiometricAvailable(hasHardware && isEnrolled);
+      if (hasHardware && isEnrolled) {
+        setBiometricEnabled(getConfigValue('biometric_lock') === 'true');
+      }
+    })();
   }, [fetchConfig]);
+
+  async function handleBiometricToggle(value: boolean) {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    if (value) {
+      // Verify biometric before enabling
+      const result = await LocalAuthentication.authenticateAsync({
+        promptMessage: 'Enable biometric lock',
+      });
+      if (result.success) {
+        setBiometricEnabled(true);
+        setConfigValue('biometric_lock', 'true');
+      }
+    } else {
+      setBiometricEnabled(false);
+      setConfigValue('biometric_lock', 'false');
+    }
+  }
 
   async function handleCurrencyChange(value: Currency) {
     const prev = currency;
@@ -78,6 +109,7 @@ export default function SettingsScreen() {
   }
 
   function handleLogout() {
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
     Alert.alert(
       'Log out of finQ?',
       "You'll need to sign in again.",
@@ -191,7 +223,7 @@ export default function SettingsScreen() {
                   styles.segment,
                   theme === t.value && styles.segmentActive,
                 ]}
-                onPress={() => setTheme(t.value)}
+                onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setTheme(t.value); }}
               >
                 <Text
                   style={[
@@ -206,6 +238,24 @@ export default function SettingsScreen() {
           </View>
         </View>
 
+        {/* Security */}
+        {biometricAvailable && (
+          <>
+            <Text style={styles.sectionHeader}>SECURITY</Text>
+            <View style={styles.sectionCard}>
+              <View style={styles.row}>
+                <Text style={styles.rowLabel}>Biometric Lock</Text>
+                <Switch
+                  value={biometricEnabled}
+                  onValueChange={handleBiometricToggle}
+                  trackColor={{ false: colors.surfaceAlt, true: colors.primary }}
+                  thumbColor="#fff"
+                />
+              </View>
+            </View>
+          </>
+        )}
+
         {/* Display Currency */}
         <Text style={styles.sectionHeader}>DISPLAY CURRENCY</Text>
         <View style={styles.sectionCard}>
@@ -217,7 +267,7 @@ export default function SettingsScreen() {
                   styles.segment,
                   currency === c.value && styles.segmentActive,
                 ]}
-                onPress={() => handleCurrencyChange(c.value)}
+                onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); handleCurrencyChange(c.value); }}
                 disabled={saving}
               >
                 <Text

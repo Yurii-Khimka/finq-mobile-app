@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import * as Haptics from 'expo-haptics';
 import {
   View,
   Text,
@@ -27,6 +28,7 @@ export default function LoginScreen() {
   const canSubmit = email.trim() !== '' && password !== '';
 
   async function handleLogin() {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setError('');
     setLoading(true);
     try {
@@ -162,7 +164,7 @@ export default function LoginScreen() {
 
           <View style={styles.spacerMd} />
 
-          <TouchableOpacity onPress={() => router.push('/(auth)/register')}>
+          <TouchableOpacity onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push('/(auth)/register'); }}>
             <Text style={styles.link}>Don't have an account? Register</Text>
           </TouchableOpacity>
         </View>

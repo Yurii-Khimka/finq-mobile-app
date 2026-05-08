@@ -1,4 +1,5 @@
 import { useMemo, useRef, useState } from 'react';
+import * as Haptics from 'expo-haptics';
 import {
   View,
   Text,
@@ -48,6 +49,7 @@ export default function IncomeScreen() {
   async function handleSubmit() {
     if (submittingRef.current) return;
     submittingRef.current = true;
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     setError('');
     setSubmitting(true);
     try {
@@ -164,7 +166,7 @@ export default function IncomeScreen() {
             <TouchableOpacity
               key={c}
               style={[styles.currencyPill, currency === c && styles.currencyPillActive]}
-              onPress={() => setCurrency(c)}
+              onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setCurrency(c); }}
             >
               <Text
                 style={[
