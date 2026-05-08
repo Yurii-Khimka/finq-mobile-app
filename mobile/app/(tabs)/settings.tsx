@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -11,7 +11,8 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { colors, fontSize, spacing } from '../../src/tokens';
+import { fontSize, spacing, type ThemeName } from '../../src/tokens';
+import { useTheme } from '../../src/context/ThemeContext';
 import { finance } from '../../src/api/client';
 import { clearToken } from '../../src/store/auth';
 import { getConfig as getLocalConfig, upsertConfig, clearAllData } from '../../src/db/queries';
@@ -25,8 +26,15 @@ const CURRENCIES = [
 
 type Currency = 'UAH' | 'USD' | 'EUR';
 
+const THEMES: { value: ThemeName; label: string }[] = [
+  { value: 'dark', label: 'Dark' },
+  { value: 'light', label: 'Light' },
+  { value: 'monochrome', label: 'Mono' },
+];
+
 export default function SettingsScreen() {
   const router = useRouter();
+  const { theme, colors, setTheme } = useTheme();
 
   const [currency, setCurrency] = useState<Currency>('UAH');
   const [saving, setSaving] = useState(false);
@@ -98,6 +106,67 @@ export default function SettingsScreen() {
     setRefreshing(false);
   }
 
+  const styles = useMemo(() => StyleSheet.create({
+    safe: { flex: 1, backgroundColor: colors.background },
+    scroll: { flex: 1 },
+    content: { padding: spacing.md, paddingBottom: spacing.xl },
+    sectionHeader: {
+      fontSize: fontSize.xs,
+      color: colors.textSecondary,
+      fontWeight: '600',
+      letterSpacing: 1,
+      marginBottom: 8,
+      marginTop: 24,
+    },
+    sectionCard: {
+      backgroundColor: colors.surface,
+      borderRadius: 12,
+      overflow: 'hidden',
+    },
+    segmentedControl: {
+      flexDirection: 'row',
+      padding: 4,
+    },
+    segment: {
+      flex: 1,
+      height: 40,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderRadius: 8,
+    },
+    segmentActive: { backgroundColor: colors.primary },
+    segmentText: { fontSize: fontSize.md, color: colors.textSecondary },
+    segmentTextActive: { color: '#fff', fontWeight: '600' },
+    savingIndicator: { paddingVertical: 8 },
+    row: {
+      height: 48,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: 16,
+    },
+    rowBorder: { borderBottomWidth: 1, borderBottomColor: colors.border },
+    rowLabel: { fontSize: fontSize.md, color: colors.text },
+    rowValue: { fontSize: fontSize.md, color: colors.textSecondary },
+    logoutButton: {
+      height: 48,
+      backgroundColor: colors.danger,
+      borderRadius: 12,
+      alignItems: 'center',
+      justifyContent: 'center',
+      margin: 8,
+    },
+    logoutText: { color: '#fff', fontSize: fontSize.md, fontWeight: '600' },
+    dangerHeader: {
+      fontSize: fontSize.xs,
+      color: colors.danger,
+      fontWeight: '600',
+      letterSpacing: 1,
+      marginBottom: 8,
+      marginTop: 24,
+    },
+  }), [colors]);
+
   return (
     <SafeAreaView style={styles.safe}>
       <ScrollView
@@ -111,6 +180,32 @@ export default function SettingsScreen() {
           />
         }
       >
+        {/* Theme */}
+        <Text style={styles.sectionHeader}>THEME</Text>
+        <View style={styles.sectionCard}>
+          <View style={styles.segmentedControl}>
+            {THEMES.map((t) => (
+              <TouchableOpacity
+                key={t.value}
+                style={[
+                  styles.segment,
+                  theme === t.value && styles.segmentActive,
+                ]}
+                onPress={() => setTheme(t.value)}
+              >
+                <Text
+                  style={[
+                    styles.segmentText,
+                    theme === t.value && styles.segmentTextActive,
+                  ]}
+                >
+                  {t.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+
         {/* Display Currency */}
         <Text style={styles.sectionHeader}>DISPLAY CURRENCY</Text>
         <View style={styles.sectionCard}>
@@ -166,9 +261,7 @@ export default function SettingsScreen() {
         </View>
 
         {/* Danger Zone */}
-        <Text style={[styles.sectionHeader, { color: colors.danger }]}>
-          DANGER ZONE
-        </Text>
+        <Text style={styles.dangerHeader}>DANGER ZONE</Text>
         <View style={styles.sectionCard}>
           <TouchableOpacity
             style={[styles.row, { opacity: 0.5 }]}
@@ -183,66 +276,3 @@ export default function SettingsScreen() {
     </SafeAreaView>
   );
 }
-
-const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.background },
-  scroll: { flex: 1 },
-  content: { padding: spacing.md, paddingBottom: spacing.xl },
-
-  // Section header
-  sectionHeader: {
-    fontSize: fontSize.xs,
-    color: colors.textSecondary,
-    fontWeight: '600',
-    letterSpacing: 1,
-    marginBottom: 8,
-    marginTop: 24,
-  },
-
-  // Section card
-  sectionCard: {
-    backgroundColor: colors.surface,
-    borderRadius: 12,
-    overflow: 'hidden',
-  },
-
-  // Segmented control
-  segmentedControl: {
-    flexDirection: 'row',
-    padding: 4,
-  },
-  segment: {
-    flex: 1,
-    height: 40,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 8,
-  },
-  segmentActive: { backgroundColor: colors.primary },
-  segmentText: { fontSize: fontSize.md, color: colors.textSecondary },
-  segmentTextActive: { color: '#fff', fontWeight: '600' },
-  savingIndicator: { paddingVertical: 8 },
-
-  // Rows
-  row: {
-    height: 48,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-  },
-  rowBorder: { borderBottomWidth: 1, borderBottomColor: colors.border },
-  rowLabel: { fontSize: fontSize.md, color: colors.text },
-  rowValue: { fontSize: fontSize.md, color: colors.textSecondary },
-
-  // Logout
-  logoutButton: {
-    height: 48,
-    backgroundColor: colors.danger,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    margin: 8,
-  },
-  logoutText: { color: '#fff', fontSize: fontSize.md, fontWeight: '600' },
-});

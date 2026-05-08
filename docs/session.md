@@ -235,7 +235,7 @@ This is especially important while architecture is still stabilising.
 
 > Updated by planner at the end of each session.
 
-**Stage:** Phase B — Mobile Core (started).
-**Completed:** TASK-001 (scaffold), TASK-002 (schema+models), TASK-003 (JWT auth), TASK-004 (income+expense+waterfall), TASK-005 (read-only endpoints+categories+config), TASK-006 (data migration script), TASK-007 (Expo setup+navigation+tokens).
-**Next step:** TASK-008.
+**Stage:** Phase B — Mobile Core (in progress).
+**Completed:** TASK-001 through TASK-016 (backend foundation, Expo setup, all core screens, SQLite offline-first with read cache + write queue).
+**Next step:** TASK-017 (theme switcher).
 **Blockers:** None.

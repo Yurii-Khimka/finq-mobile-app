@@ -3,67 +3,43 @@
 > Written by Claude Code (developer) after every completed task.
 > ALWAYS overwritten — never appended.
 > One result per session. Previous results are replaced.
-> Read by the planner to validate progress and decide the next step.
 
 ---
 
-## Task
-TASK-015 — SQLite local cache (read path)
+## TASK-019 — App icon and splash screen
 
-## Status
-COMPLETED
+### Status: DONE
 
-## What was done
+### Pre-step
 
-### 1. New dependency
-- `expo-sqlite` installed (with `--legacy-peer-deps` due to React version conflict)
+- Committed TASK-018 on `feat/task-018-category-icons`
+- Pushed and created PR: Yurii-Khimka/finq-mobile-app#14
+- Created new branch `feat/task-019-app-icon-splash`
 
-### 2. Database module (`mobile/src/db/index.ts`)
-- Opens `finq.db` via `SQLite.openDatabaseSync()`
-- `initDB()` creates 5 tables: envelopes, transactions, categories, config, cache_meta
+### Changes
 
-### 3. Data access layer (`mobile/src/db/queries.ts`)
-- `getBalances()` / `upsertBalances()` — read/write envelope balances
-- `getTransactions(filter?)` / `upsertTransactions()` / `deleteTransaction()` — with month filter support
-- `getCategories()` / `upsertCategories()` — full replace on sync
-- `getConfig()` / `upsertConfig()` — key-value for base_currency
-- `getCacheTimestamp()` / `setCacheTimestamp()` — track last sync time
-- `clearAllData()` — wipes all tables on logout
+1. **`mobile/scripts/generate-icons.js`** — New Node.js script using `canvas` package to generate all four icon assets programmatically. Draws bold indigo "Q" lettermark on dark `#0A0A0A` background. Splash icon has transparent background with "finQ" label.
 
-### 4. Sync module (`mobile/src/db/sync.ts`)
-- `syncBalances()`, `syncHistory()`, `syncCategories()`, `syncConfig()` — fetch from server, upsert into SQLite
-- `syncAll()` — parallel sync of all data types
+2. **`mobile/assets/icon.png`** — 1024x1024, dark bg + indigo Q (25 KB)
 
-### 5. Root layout (`mobile/app/_layout.tsx`)
-- Calls `initDB()` on app start
-- Calls `syncAll()` after auth check passes (non-blocking)
+3. **`mobile/assets/adaptive-icon.png`** — 1024x1024, same as icon (25 KB)
 
-### 6. Screen rewiring
+4. **`mobile/assets/splash-icon.png`** — 200x200, transparent bg + indigo Q + "finQ" label (4 KB)
 
-**Home:** reads SQLite first, syncs server in background, error only if both fail
-**History:** reads SQLite first, syncs server; delete updates both server and SQLite
-**Expense:** reads categories from SQLite; syncs balances+history after submission
-**Income:** syncs balances after submission
-**Audit:** no caching (computed server-side); graceful "requires internet" message
-**Settings:** reads config from SQLite; updates SQLite on currency change; clears all data on logout
+5. **`mobile/assets/favicon.png`** — 48x48, dark bg + indigo Q (1 KB)
 
-## Files changed
-- `mobile/src/db/index.ts` — NEW
-- `mobile/src/db/queries.ts` — NEW
-- `mobile/src/db/sync.ts` — NEW
-- `mobile/app/_layout.tsx` — EDIT
-- `mobile/app/(tabs)/index.tsx` — EDIT
-- `mobile/app/(tabs)/history.tsx` — EDIT
-- `mobile/app/(tabs)/expense.tsx` — EDIT
-- `mobile/app/(tabs)/income.tsx` — EDIT
-- `mobile/app/(tabs)/audit.tsx` — EDIT
-- `mobile/app/(tabs)/settings.tsx` — EDIT
-- `mobile/package.json` — added expo-sqlite
+6. **`canvas`** added as devDependency for icon generation.
 
-## Verification
+7. **`mobile/app.json`** — No changes needed. Already pointed to correct files with `backgroundColor: "#0A0A0A"`.
+
+### Verification
+
 ```
-cd mobile && npx tsc --noEmit  → 0 errors
+cd mobile && npx tsc --noEmit   # 0 errors
 ```
 
-## Changelog entry
-- **TASK-015:** SQLite local cache with offline-first reads, server background sync, and cache clearing on logout
+### Not changed
+
+- Backend — untouched
+- Screen logic, app behaviour — untouched
+- Theme system — untouched (splash always uses dark bg since theme loads after)
