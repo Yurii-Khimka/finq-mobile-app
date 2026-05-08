@@ -8,47 +8,46 @@
 ---
 
 ## Task
-TASK-013 — Audit screen with health signal, burn rate, breaches, sustainability, anomalies, and advisor
+TASK-014 — Settings screen with display currency selector, logout, and app info
 
 ## Status
 COMPLETED
 
 ## What was done
 
-### Audit screen (`mobile/app/(tabs)/audit.tsx`)
+### Settings screen (`mobile/app/(tabs)/settings.tsx`)
 
-Replaced placeholder with full scrollable audit dashboard. Fetches all 4 endpoints in parallel on mount.
+Replaced placeholder with full settings screen with grouped sections.
 
-**Health Signal card (top):**
-- Large pill badge: "Healthy" (green), "Warning" (yellow), "Critical" (red)
-- Spendable balance (large), safe daily limit, days remaining
+**Display Currency section:**
+- Segmented control with UAH (₴), USD ($), EUR (€)
+- Fetches current config from `finance.getConfig()` on mount
+- On change: optimistically updates UI, calls `finance.updateConfig()`
+- On error: reverts selection, shows Alert
+- Loading indicator while saving
 
-**Burn Rate section:**
-- Daily burn rate in UAH
-- Projection: "On track" (green) / "Overspending" (red) / "No spending yet" (grey)
-- Total spent so far
+**Account section:**
+- "Log Out" button with `colors.danger` background
+- Confirmation Alert: "Log out of finQ?" with Cancel / Log Out
+- On confirm: `clearToken()` → redirect to login
 
-**Breach Summary:**
-- If 0 breaches: green "No breaches this month"
-- If breaches: count + total, envelope breakdown with colored dots, top 5 breach details
+**About section:**
+- Version: 1.0.0 (static)
+- Build: MVP (static)
+- Row style with border separator
 
-**Sustainability (per-envelope):**
-- Mandatory & Non-Mandatory: daily burn, days to zero, safe daily limit with colored left border
-- Investments & Dreams: simplified "Reserve envelope" display
+**Danger Zone section:**
+- "Reset All Data" row — greyed out (opacity 0.5)
+- On press: "Coming soon" Alert
+- Section header in `colors.danger`
 
-**Spending Spikes (anomalies):**
-- Hidden if empty; sorted by ratio descending
-- Category name, 7-day vs average amounts, ratio badge in warning color
-
-**Advisor Insight:**
-- Prose text card at bottom; hidden silently if fetch fails
-
-**Loading/Error/Refresh:**
-- Centered spinner while loading, error state with retry button
-- 401 → login redirect, pull-to-refresh re-fetches all endpoints
+**General:**
+- Pull-to-refresh re-fetches config
+- 401 → login redirect
+- Proper section grouping with uppercase headers, letterSpacing 1
 
 ## Files changed
-- `mobile/app/(tabs)/audit.tsx` — replaced placeholder with full audit dashboard
+- `mobile/app/(tabs)/settings.tsx` — replaced placeholder with full settings screen
 
 ## Verification
 ```
@@ -56,4 +55,4 @@ cd mobile && npx tsc --noEmit  → 0 errors
 ```
 
 ## Changelog entry
-- **TASK-013:** Audit screen with health signal, burn rate, breach summary, sustainability cards, anomaly spikes, and AI advisor insight
+- **TASK-014:** Settings screen with currency selector, logout confirmation, app info, and danger zone placeholder

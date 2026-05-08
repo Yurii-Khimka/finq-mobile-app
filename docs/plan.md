@@ -8,151 +8,127 @@
 
 ## Active Task
 
-**TASK-013 — Audit screen (health signal, burn rate, breaches, sustainability, anomalies)**
-Goal: Build the Audit tab screen showing financial health overview, burn rate projection, breach details, per-envelope sustainability, spending anomalies, and AI advisor insight.
+**TASK-014 — Settings screen (display currency, logout, app info)**
+Goal: Build the Settings screen with display currency selector, logout with confirmation, and basic app info section.
 
 ---
 
 ## Context
 
-Four backend endpoints are ready and the mobile API client already has methods for all of them:
+The placeholder at `mobile/app/(tabs)/settings.tsx` already has a working logout button that calls `clearToken()` and redirects to login. This task replaces the placeholder with a full settings screen.
 
-| Endpoint | Client method | Returns |
-|---|---|---|
-| `GET /finance/audit` | `finance.getAudit()` | `AuditResponse` — health signal, burn rate, breaches, days to zero, safe daily limit |
-| `GET /finance/sustainability` | `finance.getSustainability()` | `SustainabilityResponse` — per-envelope burn rates and days to zero |
-| `GET /finance/anomalies` | `finance.getAnomalies()` | `AnomalyItem[]` — categories with unusual spending spikes |
-| `GET /finance/advisor` | `finance.getAdvisor()` | `AdvisorResponse` — prose summary combining all insights |
+Backend has `GET /finance/config` and `PUT /finance/config` for the `base_currency` field. Valid values: `"UAH"`, `"USD"`, `"EUR"`. The API client already has `finance.getConfig()` and `finance.updateConfig()`.
 
-The audit tab already exists as a placeholder at `mobile/app/(tabs)/audit.tsx` with icon `shield-checkmark-outline` in the tab layout.
+Logout is client-side only — delete token from SecureStore, redirect to login. No backend endpoint needed.
 
 ---
 
 ## What Must NOT Be Changed
 
 - Do not modify anything in `backend/`
-- Do not modify Home, Expense, Income, or History screens
+- Do not modify Home, Expense, Income, History, or Audit screens
 - Do not add SQLite or offline logic
-- Do not change tab layout or navigation
+- Do not change tab layout or navigation structure
 
 ---
 
 ## Read First
 
-- `mobile/src/api/client.ts` — `finance.getAudit()`, `finance.getSustainability()`, `finance.getAnomalies()`, `finance.getAdvisor()`
-- `mobile/src/types/finance.ts` — `AuditResponse`, `SustainabilityResponse`, `AnomalyItem`, `AdvisorResponse`
-- `mobile/src/tokens/index.ts` — design tokens, colours
-- `mobile/src/utils/format.ts` — `formatCurrency()`, `formatDate()`
-- `mobile/app/(tabs)/audit.tsx` — current placeholder (replace entirely)
-- `mobile/app/(tabs)/index.tsx` — reference for data fetching pattern, envelope colours, error/loading states
+- `mobile/app/(tabs)/settings.tsx` — current placeholder (replace entirely)
+- `mobile/src/store/auth.ts` — `clearToken()`, `isAuthenticated()`
+- `mobile/src/api/client.ts` — `finance.getConfig()`, `finance.updateConfig()`
+- `mobile/src/types/finance.ts` — `ConfigRequest`, `ConfigResponse`
+- `mobile/src/tokens/index.ts` — design tokens
+- `mobile/src/utils/format.ts` — `formatCurrency()` uses currency param
+- `mobile/app/_layout.tsx` — root auth gate (redirect after logout)
 
 ---
 
 ## Step-by-step
 
-### 1. Replace Audit screen (`app/(tabs)/audit.tsx`)
+### 1. Replace Settings screen (`app/(tabs)/settings.tsx`)
 
-Single scrollable screen. Fetch all four endpoints on mount (parallel). Show loading spinner while fetching. Pull-to-refresh to re-fetch all.
+Scrollable screen with grouped sections. Fetch config on mount. Pull-to-refresh.
 
-### 2. Health Signal card (top, prominent)
+### 2. Display Currency section
 
-- Large badge showing `health_signal`: green "Healthy", yellow "Warning", red "Critical"
-- Use `colors.success` / `colors.warning` / `colors.danger` for badge background
-- Below badge: spendable balance (large text), "Safe to spend ₴X/day" (subtitle)
-- Show days remaining in month
+- Header: "Display Currency"
+- Three selectable options as a segmented control or radio-style list:
+  - UAH (₴) — default
+  - USD ($)
+  - EUR (€)
+- Current selection fetched from `finance.getConfig()`
+- On change: call `finance.updateConfig({ base_currency: selected })`
+- Show brief loading indicator during save
+- On error: revert selection, show error toast/alert
+- Note: this only changes the config on the server. The app currently formats all values in UAH. A future task will wire display currency into `formatCurrency()` calls app-wide. For now, just save the preference.
 
-### 3. Burn Rate section
+### 3. Account section
 
-- Daily burn rate: "₴X/day"
-- Projection line: "At this rate, balance lasts X more days" (from `days_to_zero`)
-  - If `days_to_zero` is null (no spending): "No spending yet this month"
-  - If `days_to_zero >= days_remaining`: green text, "You're on track"
-  - If `days_to_zero < days_remaining`: red text, "Overspending — will run out before month ends"
-- Total spent this month: "₴X spent so far"
+- Header: "Account"
+- Row: "Email" — show current user's email (read-only, informational)
+  - The email is not currently available from any endpoint. Skip this row for now — just show the section header with the logout button.
+- **Logout button:**
+  - Full-width button, `colors.danger` background, white text
+  - Text: "Log Out"
+  - On press: show confirmation Alert ("Log out of finQ?", "You'll need to sign in again.", [Cancel, Log Out])
+  - On confirm: `await clearToken()` then `router.replace('/(auth)/login')`
+  - Important: the confirmation step is required — no accidental logouts
 
-### 4. Breach Summary section
+### 4. About section
 
-- If `breach_count === 0`: show a green "No breaches this month" message, skip the rest
-- If breaches exist:
-  - Header: "X breaches totalling ₴Y"
-  - Breakdown by envelope (only show envelopes with non-zero borrowed amounts):
-    - Coloured dot + envelope label + amount
-    - Use envelope colours from Home screen: mandatory=`colors.primary`, non_mandatory=`colors.success`, investments=`colors.warning`, dreams=`#EC4899`
-  - Top breaches list (up to 5):
-    - Each row: date, category name, total amount, breach amount
-    - Show "from" sources (e.g. "₴50 from Mandatory, ₴30 from Dreams")
+- Header: "About"
+- Row: "Version" — hardcoded "1.0.0" (right-aligned, grey)
+- Row: "Build" — hardcoded "MVP" (right-aligned, grey)
+- These are static for now. Will be dynamic post-MVP.
 
-### 5. Sustainability section (per-envelope cards)
+### 5. Danger Zone section (bottom, separated)
 
-- Four cards, one per envelope (mandatory, non_mandatory, investments, dreams)
-- Each card shows:
-  - Envelope name + coloured left border
-  - Daily burn rate for that envelope
-  - Days to zero (or "Safe" if null/infinite)
-  - Safe daily limit for rest of month
-- Only show mandatory and non_mandatory with full detail; investments and dreams can be simpler (they rarely have direct expenses)
-
-### 6. Anomalies section
-
-- If empty array: hide section entirely (no "No anomalies" message needed)
-- If anomalies exist:
-  - Header: "Spending Spikes"
-  - Each row: category name, "X.Xx normal" (ratio), last 7 days amount vs average
-  - Sort by ratio descending (highest spike first)
-  - Use `colors.warning` for the ratio badge
-
-### 7. Advisor section (bottom)
-
-- Card with `colors.surface` background
-- Header: "Insight" (or similar)
-- Body: `advisor.text` as plain text, `fontSize.sm`
-- If advisor fetch fails, hide section silently
-
-### 8. Error and loading states
-
-- Loading: centred spinner (same pattern as Home screen)
-- Error: inline error message with retry button
-- 401: redirect to login (same pattern as other screens)
-- Individual section failures: hide that section, don't break the whole screen
+- Header: "Danger Zone" (in `colors.danger`)
+- Row: "Reset All Data" — disabled for MVP, greyed out
+  - On press: show Alert "Coming soon — this feature is not yet available"
+  - This is a placeholder for a future data reset feature
 
 ---
 
 ## UI spec
 
-Health signal badge:
-- Height 40, rounded 20 (pill), padding horizontal 20
-- Text: white, `fontSize.lg`, bold
-- Background: `colors.success` / `colors.warning` / `colors.danger`
+Section grouping:
+- Each section has a header label: `fontSize.xs`, `colors.textSecondary`, uppercase, letterSpacing 1, marginBottom 8, marginTop 24
+- Section content in `colors.surface` card, rounded 12, overflow hidden
 
-Section cards:
-- `colors.surface` background, rounded 12, padding 16, marginBottom 12
-- Section title: `fontSize.md`, `colors.text`, fontWeight 600, marginBottom 8
+Setting rows:
+- Height 48, padding horizontal 16, vertical centre
+- Border bottom: 1px `colors.border` (except last row in section)
+- Label: `fontSize.md`, `colors.text`, left
+- Value: `fontSize.md`, `colors.textSecondary`, right
 
-Envelope cards (sustainability):
-- Row layout, coloured left border (4px wide, envelope colour)
-- `colors.surface` background, rounded 8, padding 12
-- Envelope name: `fontSize.sm`, bold
-- Burn rate / days to zero: `fontSize.xs`, `colors.textSecondary`
+Currency selector:
+- Three options in a row (segmented control style)
+- Each option: flex 1, height 40, centred text
+- Selected: `colors.primary` background, white text, rounded 8
+- Unselected: transparent background, `colors.textSecondary` text
 
-Anomaly rows:
-- Category: `fontSize.sm`, `colors.text`
-- Ratio badge: `colors.warning` background, white text, rounded pill, `fontSize.xs`
-- Amounts: `fontSize.xs`, `colors.textSecondary`
+Logout button:
+- Full-width, height 48, `colors.danger` background, rounded 12
+- Text: white, `fontSize.md`, fontWeight 600, centred
+- Margin top 8 inside the Account section card
 
-Advisor card:
-- Subtle background, `colors.surface`
-- Text: `fontSize.sm`, `colors.textSecondary`, lineHeight 20
+About rows:
+- Same style as setting rows, but no interaction (no onPress)
+
+Danger Zone:
+- Same card style but with `colors.danger` tinted border or header
+- Reset row: `colors.textSecondary` text (greyed out), opacity 0.5
 
 ---
 
 ## Edge cases
 
-- No spending this month → burn rate 0, days to zero null → "No spending yet"
-- No breaches → green confirmation, skip breach list
-- No anomalies → hide section
-- Advisor returns error → hide advisor section
-- All endpoints fail → show error state with retry
-- Very large breach amounts → format with `formatCurrency()`
+- Config fetch fails → show current selection as UAH (default), allow retry via pull-to-refresh
+- Config update fails → revert selection, show Alert with error message
+- Logout during config save → clearToken still works, pending request will 401 harmlessly
+- Double-tap logout → confirmation alert prevents double execution
 
 ---
 
@@ -163,18 +139,21 @@ cd mobile && npx tsc --noEmit   # 0 errors
 ```
 
 Manual test:
-1. Navigate to Audit tab → see health signal, burn rate, breaches
-2. Pull to refresh → data re-fetches
-3. If breaches exist → see breach list with envelope breakdown
-4. If anomalies exist → see spending spikes section
-5. Advisor text appears at bottom
+1. Navigate to Settings tab → see currency selector, logout, about info
+2. Change currency to USD → saves to backend, selection updates
+3. Change back to UAH → saves correctly
+4. Tap "Log Out" → confirmation alert appears
+5. Confirm logout → redirected to login screen
+6. Cancel logout → stays on settings
+7. Pull to refresh → config re-fetches
+8. Tap "Reset All Data" → "Coming soon" alert
 
 ---
 
 ## Git
 
-Branch: `feat/task-013-audit-screen`
-Commit message: `feat(mobile): audit screen with health signal, burn rate, breaches, and sustainability (#013)`
+Branch: `feat/task-014-settings-screen`
+Commit message: `feat(mobile): settings screen with currency selector, logout, and app info (#014)`
 
 ---
 
