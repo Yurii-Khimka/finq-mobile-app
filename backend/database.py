@@ -9,3 +9,11 @@ SessionLocal = sessionmaker(bind=engine) if engine else None
 
 class Base(DeclarativeBase):
     pass
+
+
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()

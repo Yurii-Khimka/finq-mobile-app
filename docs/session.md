@@ -236,6 +236,6 @@ This is especially important while architecture is still stabilising.
 > Updated by planner at the end of each session.
 
 **Stage:** Phase A — Backend Foundation.
-**Completed:** TASK-001 (FastAPI scaffold), TASK-001a (initial commit + push).
-**Next step:** TASK-002 — PostgreSQL schema + SQLAlchemy models.
+**Completed:** TASK-001 (scaffold), TASK-001a (commit+push), TASK-002 (schema+models), TASK-003 (JWT auth).
+**Next step:** TASK-004 — Income + expense endpoints (waterfall logic).
 **Blockers:** None.
