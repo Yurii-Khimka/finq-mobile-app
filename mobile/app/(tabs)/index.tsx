@@ -14,7 +14,7 @@ import { finance } from '../../src/api/client';
 import { clearToken } from '../../src/store/auth';
 import type { BalancesResponse, TransactionResponse } from '../../src/types/finance';
 import { formatCurrency, formatDate, envelopeLabel } from '../../src/utils/format';
-import { getBalances as getLocalBalances, getTransactions as getLocalTransactions } from '../../src/db/queries';
+import { getBalances as getLocalBalances, getTransactions as getLocalTransactions, getPendingCount } from '../../src/db/queries';
 import { syncBalances, syncHistory } from '../../src/db/sync';
 
 const ENVELOPE_META: Record<string, { color: string; pct: string }> = {
@@ -34,6 +34,7 @@ export default function HomeScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
+  const [pendingCount, setPendingCount] = useState(0);
 
   const fetchData = useCallback(async () => {
     setError('');
@@ -68,6 +69,7 @@ export default function HomeScreen() {
     } finally {
       setLoading(false);
       setRefreshing(false);
+      setPendingCount(getPendingCount());
     }
   }, [router]);
 
@@ -133,6 +135,11 @@ export default function HomeScreen() {
         </Text>
         {showUsd && (
           <Text style={styles.balanceSub}>{formatCurrency(totalUah, 'UAH')}</Text>
+        )}
+        {pendingCount > 0 && (
+          <Text style={styles.pendingText}>
+            {pendingCount} pending change{pendingCount !== 1 ? 's' : ''}
+          </Text>
         )}
       </View>
 
@@ -201,6 +208,11 @@ const styles = StyleSheet.create({
 
   // Balance
   balanceSection: { alignItems: 'center', paddingVertical: spacing.lg },
+  pendingText: {
+    fontSize: fontSize.xs,
+    color: colors.warning,
+    marginTop: spacing.xs,
+  },
   balanceMain: {
     fontSize: fontSize.xxl,
     fontWeight: '700',

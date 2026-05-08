@@ -4,6 +4,7 @@ import type {
   TransactionResponse,
   CategoryResponse,
   ConfigResponse,
+  PendingWrite,
 } from '../types/finance';
 
 const ENVELOPE_PCTS: Record<string, number> = {
@@ -122,6 +123,81 @@ export function setCacheTimestamp(key: string): void {
   db.runSync('INSERT OR REPLACE INTO cache_meta (key, value) VALUES (?, ?)', key, new Date().toISOString());
 }
 
+// ── Pending writes ──
+
+function generateId(): string {
+  const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+  let id = '';
+  for (let i = 0; i < 12; i++) id += chars[Math.floor(Math.random() * chars.length)];
+  return id;
+}
+
+export function insertPendingWrite(op: string, payload: object): string {
+  const id = `pw_${generateId()}`;
+  db.runSync(
+    'INSERT INTO pending_writes (id, operation, payload, created_at) VALUES (?, ?, ?, ?)',
+    id, op, JSON.stringify(payload), new Date().toISOString(),
+  );
+  return id;
+}
+
+export function getPendingWrites(): PendingWrite[] {
+  return db.getAllSync<PendingWrite>(
+    "SELECT id, operation, payload, created_at, attempts, last_error, status FROM pending_writes WHERE status = 'pending' ORDER BY created_at ASC",
+  );
+}
+
+export function updatePendingStatus(id: string, status: string, error?: string): void {
+  db.runSync(
+    'UPDATE pending_writes SET status = ?, attempts = attempts + 1, last_error = ? WHERE id = ?',
+    status, error ?? null, id,
+  );
+}
+
+export function deletePendingWrite(id: string): void {
+  db.runSync('DELETE FROM pending_writes WHERE id = ?', id);
+}
+
+export function getPendingCount(): number {
+  const row = db.getFirstSync<{ cnt: number }>("SELECT COUNT(*) as cnt FROM pending_writes WHERE status IN ('pending', 'syncing')");
+  return row?.cnt ?? 0;
+}
+
+export function clearFailedWrites(): void {
+  db.runSync("DELETE FROM pending_writes WHERE status = 'failed'");
+}
+
+// ── Optimistic local writes ──
+
+export function applyLocalExpense(category: string, amountUah: number, envelope: string): void {
+  // Deduct from envelope
+  db.runSync('UPDATE envelopes SET balance = balance - ? WHERE name = ?', amountUah, envelope);
+
+  // Insert temp transaction
+  const id = `local_${generateId()}`;
+  const now = new Date().toISOString();
+  db.runSync(
+    'INSERT INTO transactions (id, date, type, category, amount_uah, original_amount, original_currency, envelope, details) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+    id, now, 'expense', category, amountUah, null, null, envelope, 'pending sync',
+  );
+}
+
+export function applyLocalIncome(amountUah: number): void {
+  // Distribute across envelopes
+  for (const [name, pct] of Object.entries(ENVELOPE_PCTS)) {
+    const share = (amountUah * pct) / 100;
+    db.runSync('UPDATE envelopes SET balance = balance + ? WHERE name = ?', share, name);
+  }
+
+  // Insert temp transaction
+  const id = `local_${generateId()}`;
+  const now = new Date().toISOString();
+  db.runSync(
+    'INSERT INTO transactions (id, date, type, category, amount_uah, original_amount, original_currency, envelope, details) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+    id, now, 'income', 'income', amountUah, null, null, 'mandatory', 'pending sync',
+  );
+}
+
 // ── Clear all ──
 
 export function clearAllData(): void {
@@ -130,4 +206,5 @@ export function clearAllData(): void {
   db.execSync('DELETE FROM categories');
   db.execSync('DELETE FROM config');
   db.execSync('DELETE FROM cache_meta');
+  db.execSync('DELETE FROM pending_writes');
 }

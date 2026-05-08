@@ -36,6 +36,16 @@ export function initDB(): void {
       key TEXT PRIMARY KEY,
       value TEXT NOT NULL
     );
+
+    CREATE TABLE IF NOT EXISTS pending_writes (
+      id TEXT PRIMARY KEY,
+      operation TEXT NOT NULL,
+      payload TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      attempts INTEGER NOT NULL DEFAULT 0,
+      last_error TEXT,
+      status TEXT NOT NULL DEFAULT 'pending'
+    );
   `);
 }
 
