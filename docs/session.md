@@ -235,6 +235,7 @@ This is especially important while architecture is still stabilising.
 
 > Updated by planner at the end of each session.
 
-**Stage:** Pre-development. Planning complete.
-**Next step:** Repository setup + FastAPI project scaffold.
+**Stage:** Phase A — Backend Foundation.
+**Completed:** TASK-001 (scaffold), TASK-001a (commit+push), TASK-002 (schema+models), TASK-003 (JWT auth), TASK-004 (income+expense+waterfall).
+**Next step:** TASK-005 — Read-only endpoints (history, stats, audit, categories, config).
 **Blockers:** None.
