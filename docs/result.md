@@ -8,50 +8,47 @@
 ---
 
 ## Task
-TASK-012 — History screen with day groups, filters, and swipe-to-delete
+TASK-013 — Audit screen with health signal, burn rate, breaches, sustainability, anomalies, and advisor
 
 ## Status
 COMPLETED
 
 ## What was done
 
-### 1. SwipeableRow component (`mobile/src/components/SwipeableRow.tsx`)
-- Animated + PanResponder horizontal swipe, left-to-reveal red Delete button
-- Swipe threshold at -40px, clamped to -80px (DELETE_WIDTH)
-- Tap Delete → confirmation Alert, then calls onDelete callback
-- Cancel snaps row back with spring animation
+### Audit screen (`mobile/app/(tabs)/audit.tsx`)
 
-### 2. History screen (`mobile/app/(tabs)/history.tsx`)
+Replaced placeholder with full scrollable audit dashboard. Fetches all 4 endpoints in parallel on mount.
 
-**Filter bar (two rows):**
-- Date pills: "All", "This Month", plus month names derived from data (e.g. "May", "Apr")
-- Envelope pills: "All Envelopes", "Mandatory", "Non-Mandatory", "Investments", "Dreams"
-- Active pill: `colors.primary` bg, white text; inactive: `colors.surface` bg with border
-- Date filter triggers API re-fetch; envelope filter is client-side
+**Health Signal card (top):**
+- Large pill badge: "Healthy" (green), "Warning" (yellow), "Critical" (red)
+- Spendable balance (large), safe daily limit, days remaining
 
-**Transaction list (SectionList, grouped by day):**
-- Sections grouped by YYYY-MM-DD, sorted descending
-- Section headers: "Today", "Yesterday", "May 7", etc. (sticky)
-- Each row: category (bold) + envelope (grey) on left; amount (red/green) + FX original + time on right
-- Swipe-to-delete on every row via SwipeableRow
+**Burn Rate section:**
+- Daily burn rate in UAH
+- Projection: "On track" (green) / "Overspending" (red) / "No spending yet" (grey)
+- Total spent so far
 
-**Summary bar:**
-- Shows transaction count and total spent (expenses only)
-- Updates when filters change
+**Breach Summary:**
+- If 0 breaches: green "No breaches this month"
+- If breaches: count + total, envelope breakdown with colored dots, top 5 breach details
 
-**Empty state:**
-- 📋 icon + "No transactions" or "No transactions match filters"
+**Sustainability (per-envelope):**
+- Mandatory & Non-Mandatory: daily burn, days to zero, safe daily limit with colored left border
+- Investments & Dreams: simplified "Reserve envelope" display
 
-**Pull-to-refresh:**
-- RefreshControl re-fetches with current date filter
+**Spending Spikes (anomalies):**
+- Hidden if empty; sorted by ratio descending
+- Category name, 7-day vs average amounts, ratio badge in warning color
 
-**Error handling:**
-- 401 → login redirect
-- Generic errors shown inline
+**Advisor Insight:**
+- Prose text card at bottom; hidden silently if fetch fails
+
+**Loading/Error/Refresh:**
+- Centered spinner while loading, error state with retry button
+- 401 → login redirect, pull-to-refresh re-fetches all endpoints
 
 ## Files changed
-- `mobile/src/components/SwipeableRow.tsx` — NEW: swipeable row with delete action
-- `mobile/app/(tabs)/history.tsx` — replaced placeholder with full history screen
+- `mobile/app/(tabs)/audit.tsx` — replaced placeholder with full audit dashboard
 
 ## Verification
 ```
@@ -59,4 +56,4 @@ cd mobile && npx tsc --noEmit  → 0 errors
 ```
 
 ## Changelog entry
-- **TASK-012:** History screen with day-grouped SectionList, date/envelope filters, swipe-to-delete, pull-to-refresh, and summary bar
+- **TASK-013:** Audit screen with health signal, burn rate, breach summary, sustainability cards, anomaly spikes, and AI advisor insight
