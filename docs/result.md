@@ -8,48 +8,29 @@
 ---
 
 ## Task
-TASK-010 — Add Expense flow (NumPad + category picker + impact preview)
+TASK-011 — Add Income flow with NumPad and distribution preview
 
 ## Status
 COMPLETED
 
 ## What was done
 
-### 1. NumPad component (`mobile/src/components/NumPad.tsx`)
-- Reusable 4×3 grid: digits 0-9, decimal point, backspace
-- Haptic feedback via `expo-haptics` on every tap
-- Enforces max 10 digits before decimal, max 2 decimal places
-- Prevents leading zeros and duplicate dots
-
-### 2. Expense screen (`mobile/app/(tabs)/expense.tsx`)
-
-**Input mode:**
-- Amount display with currency symbol, updates via NumPad
-- Currency toggle pills: UAH (default), USD, EUR
-- Category picker: fetched from API, grouped by envelope with section headers
-- Selected chip gets indigo border highlight, colored dot per envelope
-- Confirm button disabled until amount > 0 AND category selected
-- Loading spinner on confirm while fetching impact
-
-**Confirmation mode:**
-- Impact preview card showing: spend summary, spendable before/after, daily limit before/after
-- Risk badge (GREEN/YELLOW/RED) color-coded
-- Waterfall breach warning when triggered
-- Cancel → back to input, Confirm Expense → submit
-- Double-tap protection: button disabled while submitting
-
-**After submit:**
-- Success → navigates to Home tab
-- Breach note → Alert with warning, then navigates to Home
-- Errors: 401 → login redirect, 502 → "Exchange rate unavailable", 404 → "Category not found"
-
-### 3. New dependency
-- `expo-haptics` installed for NumPad feedback
+### 1. Income screen (`mobile/app/(tabs)/income.tsx`)
+- Replaced placeholder with full income entry flow
+- Amount display: large green text (fontSize.xxl + 8), currency symbol prefix
+- Currency toggle pills: UAH (default), USD, EUR — green active state (vs expense's indigo)
+- Distribution preview: 4 rows showing live split across envelopes (50/30/10/10)
+  - Each row has colored left border matching Home screen envelope colors
+  - Shows envelope name, percentage, and calculated amount
+  - Updates live as amount changes
+- NumPad reused from TASK-010 (no modifications)
+- "Add Income" button: green (`colors.success`), full width, disabled until amount > 0
+- Double-tap protection via `useRef` guard
+- Submit calls `finance.addIncome({ amount, currency })`, navigates to Home on success
+- Error handling: 401 → login redirect, 502 → "Exchange rate unavailable"
 
 ## Files changed
-- `mobile/src/components/NumPad.tsx` — NEW: reusable numpad component
-- `mobile/app/(tabs)/expense.tsx` — replaced placeholder with full expense flow
-- `mobile/package.json` — added expo-haptics
+- `mobile/app/(tabs)/income.tsx` — replaced placeholder with full income flow
 
 ## Verification
 ```
@@ -57,4 +38,4 @@ cd mobile && npx tsc --noEmit  → 0 errors
 ```
 
 ## Changelog entry
-- **TASK-010:** Expense flow with custom NumPad, category picker, currency toggle, impact preview, and breach warnings
+- **TASK-011:** Income flow with NumPad, currency toggle, live distribution preview, and envelope split
