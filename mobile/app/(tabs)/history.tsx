@@ -17,6 +17,8 @@ import { clearToken } from '../../src/store/auth';
 import type { TransactionResponse } from '../../src/types/finance';
 import { formatCurrency, formatDate, envelopeLabel } from '../../src/utils/format';
 import SwipeableRow from '../../src/components/SwipeableRow';
+import { getTransactions as getLocalTransactions, deleteTransaction as deleteLocalTransaction } from '../../src/db/queries';
+import { syncHistory } from '../../src/db/sync';
 
 const ENVELOPE_FILTERS = ['all', 'mandatory', 'non_mandatory', 'investments', 'dreams'] as const;
 type EnvelopeFilter = (typeof ENVELOPE_FILTERS)[number];
@@ -52,11 +54,23 @@ export default function HistoryScreen() {
   const fetchHistory = useCallback(async (filter: string, isRefresh = false) => {
     if (isRefresh) setRefreshing(true); else setLoading(true);
     setError('');
+
+    // Read local cache first
+    const localData = getLocalTransactions(filter);
+    if (localData.length > 0) {
+      setTransactions(localData);
+      if (filter === 'all') {
+        const months = [...new Set(localData.map((t) => new Date(t.date).getMonth()))];
+        setAvailableMonths(months.sort((a, b) => b - a));
+      }
+      setLoading(false);
+    }
+
+    // Then sync from server
     try {
-      const data = await finance.getHistory(filter);
+      const data = await syncHistory(filter);
       setTransactions(data);
 
-      // Extract unique months from full dataset
       if (filter === 'all') {
         const months = [...new Set(data.map((t) => new Date(t.date).getMonth()))];
         setAvailableMonths(months.sort((a, b) => b - a));
@@ -66,7 +80,7 @@ export default function HistoryScreen() {
       if (msg.includes('401')) {
         await clearToken();
         router.replace('/(auth)/login');
-      } else {
+      } else if (localData.length === 0) {
         setError('Failed to load history');
       }
     } finally {
@@ -109,6 +123,7 @@ export default function HistoryScreen() {
   async function handleDelete(id: string) {
     try {
       await finance.removeTransaction(id);
+      deleteLocalTransaction(id);
       setTransactions((prev) => prev.filter((t) => t.id !== id));
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : String(e);

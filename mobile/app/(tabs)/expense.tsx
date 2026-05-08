@@ -16,6 +16,8 @@ import { clearToken } from '../../src/store/auth';
 import type { CategoryResponse, ImpactResponse } from '../../src/types/finance';
 import { formatCurrency, envelopeLabel } from '../../src/utils/format';
 import NumPad from '../../src/components/NumPad';
+import { getCategories as getLocalCategories } from '../../src/db/queries';
+import { syncCategories, syncBalances, syncHistory } from '../../src/db/sync';
 
 const CURRENCIES = ['UAH', 'USD', 'EUR'] as const;
 type Currency = (typeof CURRENCIES)[number];
@@ -67,8 +69,16 @@ export default function ExpenseScreen() {
   }, []);
 
   async function fetchCategories() {
+    // Read local cache first
+    const localCats = getLocalCategories();
+    if (localCats.length > 0) {
+      setCategories(localCats);
+      setLoadingCategories(false);
+    }
+
+    // Then sync from server
     try {
-      const cats = await finance.getCategories();
+      const cats = await syncCategories();
       setCategories(cats);
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : String(e);
@@ -121,6 +131,10 @@ export default function ExpenseScreen() {
         amount: numericAmount,
         currency,
       });
+
+      // Sync cache after successful expense
+      syncBalances().catch(() => {});
+      syncHistory('all').catch(() => {});
 
       if (result.breach_note) {
         Alert.alert('Budget Breach', result.breach_note, [

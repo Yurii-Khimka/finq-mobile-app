@@ -14,6 +14,8 @@ import { useRouter } from 'expo-router';
 import { colors, fontSize, spacing } from '../../src/tokens';
 import { finance } from '../../src/api/client';
 import { clearToken } from '../../src/store/auth';
+import { getConfig as getLocalConfig, upsertConfig, clearAllData } from '../../src/db/queries';
+import { syncConfig } from '../../src/db/sync';
 
 const CURRENCIES = [
   { value: 'UAH', label: 'UAH (₴)' },
@@ -31,8 +33,13 @@ export default function SettingsScreen() {
   const [refreshing, setRefreshing] = useState(false);
 
   const fetchConfig = useCallback(async () => {
+    // Read local cache first
+    const localConfig = getLocalConfig();
+    setCurrency(localConfig.base_currency as Currency);
+
+    // Then sync from server
     try {
-      const config = await finance.getConfig();
+      const config = await syncConfig();
       setCurrency(config.base_currency as Currency);
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : String(e);
@@ -53,6 +60,7 @@ export default function SettingsScreen() {
     setSaving(true);
     try {
       await finance.updateConfig({ base_currency: value });
+      upsertConfig({ base_currency: value });
     } catch {
       setCurrency(prev);
       Alert.alert('Error', 'Failed to update currency. Please try again.');
@@ -71,6 +79,7 @@ export default function SettingsScreen() {
           text: 'Log Out',
           style: 'destructive',
           onPress: async () => {
+            clearAllData();
             await clearToken();
             router.replace('/(auth)/login');
           },
