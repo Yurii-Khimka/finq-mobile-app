@@ -11,13 +11,16 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { colors, fontSize, spacing } from '../../src/tokens';
+import { Ionicons } from '@expo/vector-icons';
+import { fontSize, spacing } from '../../src/tokens';
+import { useTheme } from '../../src/context/ThemeContext';
+import { getCategoryIcon } from '../../src/utils/categoryIcons';
 import { finance } from '../../src/api/client';
 import { clearToken } from '../../src/store/auth';
 import type { TransactionResponse } from '../../src/types/finance';
 import { formatCurrency, formatDate, envelopeLabel } from '../../src/utils/format';
 import SwipeableRow from '../../src/components/SwipeableRow';
-import { getTransactions as getLocalTransactions, deleteTransaction as deleteLocalTransaction } from '../../src/db/queries';
+import { getTransactions as getLocalTransactions, deleteTransaction as deleteLocalTransaction, insertPendingWrite } from '../../src/db/queries';
 import { syncHistory } from '../../src/db/sync';
 
 const ENVELOPE_FILTERS = ['all', 'mandatory', 'non_mandatory', 'investments', 'dreams'] as const;
@@ -40,6 +43,7 @@ interface Section {
 
 export default function HistoryScreen() {
   const router = useRouter();
+  const { colors } = useTheme();
 
   const [transactions, setTransactions] = useState<TransactionResponse[]>([]);
   const [loading, setLoading] = useState(true);
@@ -127,9 +131,16 @@ export default function HistoryScreen() {
       setTransactions((prev) => prev.filter((t) => t.id !== id));
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : String(e);
+      const isNetworkError = e instanceof TypeError || msg.includes('Network') || msg.includes('fetch');
+
       if (msg.includes('401')) {
         await clearToken();
         router.replace('/(auth)/login');
+      } else if (isNetworkError) {
+        // Queue for offline sync
+        insertPendingWrite('removeTransaction', { id });
+        deleteLocalTransaction(id);
+        setTransactions((prev) => prev.filter((t) => t.id !== id));
       } else {
         setError('Failed to delete transaction');
       }
@@ -151,6 +162,67 @@ export default function HistoryScreen() {
     })),
   ];
 
+  const styles = useMemo(() => StyleSheet.create({
+    safe: { flex: 1, backgroundColor: colors.background },
+    filterScroll: { flexGrow: 0 },
+    filterContent: { paddingHorizontal: spacing.md, paddingVertical: spacing.xs, gap: 8 },
+    pill: {
+      height: 32,
+      paddingHorizontal: 12,
+      borderRadius: 16,
+      backgroundColor: colors.surface,
+      borderWidth: 1,
+      borderColor: colors.border,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    pillActive: { backgroundColor: colors.primary, borderColor: colors.primary },
+    pillText: { fontSize: fontSize.sm, color: colors.textSecondary },
+    pillTextActive: { color: '#fff' },
+    summaryBar: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.xs,
+    },
+    summaryText: { fontSize: fontSize.xs, color: colors.textSecondary },
+    error: {
+      color: colors.danger,
+      fontSize: fontSize.sm,
+      textAlign: 'center',
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.xs,
+    },
+    sectionHeader: {
+      fontSize: fontSize.sm,
+      color: colors.textSecondary,
+      fontWeight: '700',
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.sm,
+      backgroundColor: colors.background,
+    },
+    txRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      backgroundColor: colors.surface,
+      borderRadius: 8,
+      padding: 12,
+      marginHorizontal: spacing.md,
+      marginBottom: 4,
+    },
+    txLeft: { flex: 1 },
+    txCategory: { fontSize: fontSize.md, color: colors.text, fontWeight: '600' },
+    txEnvelope: { fontSize: fontSize.xs, color: colors.textSecondary, marginTop: 2 },
+    txRight: { alignItems: 'flex-end' },
+    txAmount: { fontSize: fontSize.md, fontWeight: '600' },
+    txOriginal: { fontSize: fontSize.xs, color: colors.textSecondary, marginTop: 2 },
+    txTime: { fontSize: fontSize.xs, color: colors.textSecondary, marginTop: 2 },
+    listContent: { paddingBottom: spacing.lg },
+    center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+    emptyIcon: { fontSize: 48, marginBottom: spacing.sm },
+    emptyText: { fontSize: fontSize.md, color: colors.textSecondary },
+  }), [colors]);
+
   function renderTransaction({ item }: { item: TransactionResponse }) {
     const isExpense = item.type === 'expense';
     const amountColor = isExpense ? colors.danger : colors.success;
@@ -160,7 +232,10 @@ export default function HistoryScreen() {
       <SwipeableRow onDelete={() => handleDelete(item.id)}>
         <View style={styles.txRow}>
           <View style={styles.txLeft}>
-            <Text style={styles.txCategory}>{item.category}</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <Ionicons name={getCategoryIcon(item.category)} size={16} color={colors.textSecondary} style={{ marginRight: 6 }} />
+              <Text style={styles.txCategory}>{item.category}</Text>
+            </View>
             <Text style={styles.txEnvelope}>{envelopeLabel(item.envelope)}</Text>
           </View>
           <View style={styles.txRight}>
@@ -271,78 +346,3 @@ export default function HistoryScreen() {
     </SafeAreaView>
   );
 }
-
-const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.background },
-
-  // Filters
-  filterScroll: { flexGrow: 0 },
-  filterContent: { paddingHorizontal: spacing.md, paddingVertical: spacing.xs, gap: 8 },
-  pill: {
-    height: 32,
-    paddingHorizontal: 12,
-    borderRadius: 16,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  pillActive: { backgroundColor: colors.primary, borderColor: colors.primary },
-  pillText: { fontSize: fontSize.sm, color: colors.textSecondary },
-  pillTextActive: { color: '#fff' },
-
-  // Summary
-  summaryBar: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs,
-  },
-  summaryText: { fontSize: fontSize.xs, color: colors.textSecondary },
-
-  // Error
-  error: {
-    color: colors.danger,
-    fontSize: fontSize.sm,
-    textAlign: 'center',
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs,
-  },
-
-  // Section header
-  sectionHeader: {
-    fontSize: fontSize.sm,
-    color: colors.textSecondary,
-    fontWeight: '700',
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    backgroundColor: colors.background,
-  },
-
-  // Transaction row
-  txRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    backgroundColor: colors.surface,
-    borderRadius: 8,
-    padding: 12,
-    marginHorizontal: spacing.md,
-    marginBottom: 4,
-  },
-  txLeft: { flex: 1 },
-  txCategory: { fontSize: fontSize.md, color: colors.text, fontWeight: '600' },
-  txEnvelope: { fontSize: fontSize.xs, color: colors.textSecondary, marginTop: 2 },
-  txRight: { alignItems: 'flex-end' },
-  txAmount: { fontSize: fontSize.md, fontWeight: '600' },
-  txOriginal: { fontSize: fontSize.xs, color: colors.textSecondary, marginTop: 2 },
-  txTime: { fontSize: fontSize.xs, color: colors.textSecondary, marginTop: 2 },
-
-  // List
-  listContent: { paddingBottom: spacing.lg },
-
-  // Empty / loading
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  emptyIcon: { fontSize: 48, marginBottom: spacing.sm },
-  emptyText: { fontSize: fontSize.md, color: colors.textSecondary },
-});

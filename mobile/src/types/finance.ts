@@ -140,6 +140,18 @@ export interface ConfigResponse {
   base_currency: string;
 }
 
+// Pending writes (offline queue)
+
+export interface PendingWrite {
+  id: string;
+  operation: 'addExpense' | 'addIncome' | 'removeTransaction';
+  payload: string;
+  created_at: string;
+  attempts: number;
+  last_error: string | null;
+  status: 'pending' | 'syncing' | 'failed';
+}
+
 // Auth types
 
 export interface AuthTokens {

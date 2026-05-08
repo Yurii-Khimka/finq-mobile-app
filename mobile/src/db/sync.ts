@@ -1,6 +1,9 @@
 import { finance } from '../api/client';
 import type { BalancesResponse, TransactionResponse, CategoryResponse, ConfigResponse } from '../types/finance';
-import { upsertBalances, upsertTransactions, upsertCategories, upsertConfig, setCacheTimestamp } from './queries';
+import {
+  upsertBalances, upsertTransactions, upsertCategories, upsertConfig, setCacheTimestamp,
+  getPendingWrites, updatePendingStatus, deletePendingWrite,
+} from './queries';
 
 export async function syncBalances(): Promise<BalancesResponse> {
   const balances = await finance.getBalances();
@@ -37,4 +40,52 @@ export async function syncAll(): Promise<void> {
     syncCategories(),
     syncConfig(),
   ]);
+}
+
+let isReplaying = false;
+
+export async function replayPendingWrites(): Promise<void> {
+  if (isReplaying) return;
+  isReplaying = true;
+
+  try {
+    const pending = getPendingWrites();
+    if (pending.length === 0) return;
+
+    for (const write of pending) {
+      if (write.attempts >= 5) {
+        updatePendingStatus(write.id, 'failed', 'Max retries exceeded');
+        continue;
+      }
+
+      updatePendingStatus(write.id, 'syncing');
+
+      try {
+        const payload = JSON.parse(write.payload);
+
+        switch (write.operation) {
+          case 'addExpense':
+            await finance.addExpense(payload);
+            break;
+          case 'addIncome':
+            await finance.addIncome(payload);
+            break;
+          case 'removeTransaction':
+            await finance.removeTransaction(payload.id);
+            break;
+        }
+
+        deletePendingWrite(write.id);
+      } catch (e: unknown) {
+        const msg = e instanceof Error ? e.message : String(e);
+        updatePendingStatus(write.id, 'pending', msg);
+        break; // Stop on first failure — preserve order
+      }
+    }
+
+    // After replaying, full sync to reconcile
+    await syncAll();
+  } finally {
+    isReplaying = false;
+  }
 }

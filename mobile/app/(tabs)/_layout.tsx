@@ -1,6 +1,7 @@
 import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { colors, fontSize } from '../../src/tokens';
+import { fontSize } from '../../src/tokens';
+import { useTheme } from '../../src/context/ThemeContext';
 
 type TabIcon = React.ComponentProps<typeof Ionicons>['name'];
 
@@ -14,6 +15,8 @@ const tabs: { name: string; title: string; icon: TabIcon }[] = [
 ];
 
 export default function TabsLayout() {
+  const { colors } = useTheme();
+
   return (
     <Tabs
       screenOptions={{

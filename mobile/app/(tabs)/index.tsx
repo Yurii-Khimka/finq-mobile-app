@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -9,31 +9,42 @@ import {
   RefreshControl,
 } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
-import { colors, fontSize, spacing } from '../../src/tokens';
+import { Ionicons } from '@expo/vector-icons';
+import { fontSize, spacing } from '../../src/tokens';
+import { useTheme } from '../../src/context/ThemeContext';
+import { getCategoryIcon } from '../../src/utils/categoryIcons';
 import { finance } from '../../src/api/client';
 import { clearToken } from '../../src/store/auth';
 import type { BalancesResponse, TransactionResponse } from '../../src/types/finance';
 import { formatCurrency, formatDate, envelopeLabel } from '../../src/utils/format';
-import { getBalances as getLocalBalances, getTransactions as getLocalTransactions } from '../../src/db/queries';
+import { getBalances as getLocalBalances, getTransactions as getLocalTransactions, getPendingCount } from '../../src/db/queries';
 import { syncBalances, syncHistory } from '../../src/db/sync';
 
-const ENVELOPE_META: Record<string, { color: string; pct: string }> = {
-  mandatory: { color: colors.primary, pct: '50%' },
-  non_mandatory: { color: colors.success, pct: '30%' },
-  investments: { color: colors.warning, pct: '10%' },
-  dreams: { color: '#EC4899', pct: '10%' },
-};
-
 const ENVELOPE_KEYS = ['mandatory', 'non_mandatory', 'investments', 'dreams'] as const;
+const ENVELOPE_PCTS: Record<string, string> = {
+  mandatory: '50%',
+  non_mandatory: '30%',
+  investments: '10%',
+  dreams: '10%',
+};
 
 export default function HomeScreen() {
   const router = useRouter();
+  const { colors } = useTheme();
   const [balances, setBalances] = useState<BalancesResponse | null>(null);
   const [transactions, setTransactions] = useState<TransactionResponse[]>([]);
   const [usdRate, setUsdRate] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
+  const [pendingCount, setPendingCount] = useState(0);
+
+  const envelopeMeta: Record<string, { color: string; pct: string }> = useMemo(() => ({
+    mandatory: { color: colors.envelopeMandatory, pct: '50%' },
+    non_mandatory: { color: colors.envelopeNonMandatory, pct: '30%' },
+    investments: { color: colors.envelopeInvestments, pct: '10%' },
+    dreams: { color: colors.envelopeDreams, pct: '10%' },
+  }), [colors]);
 
   const fetchData = useCallback(async () => {
     setError('');
@@ -68,6 +79,7 @@ export default function HomeScreen() {
     } finally {
       setLoading(false);
       setRefreshing(false);
+      setPendingCount(getPendingCount());
     }
   }, [router]);
 
@@ -85,6 +97,92 @@ export default function HomeScreen() {
     setRefreshing(true);
     fetchData();
   }
+
+  const styles = useMemo(() => StyleSheet.create({
+    scroll: { flex: 1, backgroundColor: colors.background },
+    content: { paddingBottom: spacing.xl },
+    center: {
+      flex: 1,
+      backgroundColor: colors.background,
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: spacing.lg,
+    },
+    balanceSection: { alignItems: 'center', paddingVertical: spacing.lg },
+    pendingText: {
+      fontSize: fontSize.xs,
+      color: colors.warning,
+      marginTop: spacing.xs,
+    },
+    balanceMain: {
+      fontSize: fontSize.xxl,
+      fontWeight: '700',
+      color: colors.text,
+    },
+    balanceSub: {
+      fontSize: fontSize.sm,
+      color: colors.textSecondary,
+      marginTop: spacing.xs,
+    },
+    grid: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      paddingHorizontal: spacing.md,
+      gap: 12,
+    },
+    card: {
+      width: '47%',
+      backgroundColor: colors.surface,
+      borderRadius: 12,
+      padding: spacing.md,
+      borderLeftWidth: 3,
+    },
+    cardLabel: {
+      fontSize: fontSize.sm,
+      color: colors.textSecondary,
+    },
+    cardAmount: {
+      fontSize: fontSize.lg,
+      fontWeight: '700',
+      color: colors.text,
+      marginTop: spacing.xs,
+    },
+    cardPct: {
+      fontSize: fontSize.xs,
+      color: colors.textSecondary,
+      marginTop: spacing.xs,
+    },
+    txSection: { padding: spacing.md },
+    txTitle: {
+      fontSize: fontSize.lg,
+      fontWeight: '700',
+      color: colors.text,
+      marginBottom: 12,
+    },
+    txRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      backgroundColor: colors.surface,
+      borderRadius: 8,
+      padding: 12,
+      marginBottom: spacing.sm,
+    },
+    txLeft: {},
+    txRight: { alignItems: 'flex-end' },
+    txCategory: { fontSize: fontSize.md, color: colors.text },
+    txDate: { fontSize: fontSize.xs, color: colors.textSecondary, marginTop: 2 },
+    txAmount: { fontSize: fontSize.md },
+    txEnvelope: { fontSize: fontSize.xs, color: colors.textSecondary, marginTop: 2 },
+    errorText: { color: colors.danger, fontSize: fontSize.md, marginBottom: spacing.md },
+    retryButton: {
+      backgroundColor: colors.primary,
+      paddingHorizontal: spacing.lg,
+      paddingVertical: spacing.sm,
+      borderRadius: 8,
+    },
+    retryText: { color: '#fff', fontSize: fontSize.md, fontWeight: '600' },
+    emptyText: { color: colors.textSecondary, fontSize: fontSize.md, textAlign: 'center' },
+  }), [colors]);
 
   if (loading) {
     return (
@@ -134,13 +232,18 @@ export default function HomeScreen() {
         {showUsd && (
           <Text style={styles.balanceSub}>{formatCurrency(totalUah, 'UAH')}</Text>
         )}
+        {pendingCount > 0 && (
+          <Text style={styles.pendingText}>
+            {pendingCount} pending change{pendingCount !== 1 ? 's' : ''}
+          </Text>
+        )}
       </View>
 
       {/* Section B — Envelope cards */}
       <View style={styles.grid}>
         {ENVELOPE_KEYS.map((key) => {
           const uah = balances?.[key] ?? 0;
-          const meta = ENVELOPE_META[key];
+          const meta = envelopeMeta[key];
           return (
             <View key={key} style={[styles.card, { borderLeftColor: meta.color }]}>
               <Text style={styles.cardLabel}>{envelopeLabel(key)}</Text>
@@ -164,7 +267,10 @@ export default function HomeScreen() {
             return (
               <View key={tx.id} style={styles.txRow}>
                 <View style={styles.txLeft}>
-                  <Text style={styles.txCategory}>{tx.category}</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                    <Ionicons name={getCategoryIcon(tx.category)} size={16} color={colors.textSecondary} style={{ marginRight: 6 }} />
+                    <Text style={styles.txCategory}>{tx.category}</Text>
+                  </View>
                   <Text style={styles.txDate}>{formatDate(tx.date)}</Text>
                 </View>
                 <View style={styles.txRight}>
@@ -187,92 +293,3 @@ export default function HomeScreen() {
     </ScrollView>
   );
 }
-
-const styles = StyleSheet.create({
-  scroll: { flex: 1, backgroundColor: colors.background },
-  content: { paddingBottom: spacing.xl },
-  center: {
-    flex: 1,
-    backgroundColor: colors.background,
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: spacing.lg,
-  },
-
-  // Balance
-  balanceSection: { alignItems: 'center', paddingVertical: spacing.lg },
-  balanceMain: {
-    fontSize: fontSize.xxl,
-    fontWeight: '700',
-    color: colors.text,
-  },
-  balanceSub: {
-    fontSize: fontSize.sm,
-    color: colors.textSecondary,
-    marginTop: spacing.xs,
-  },
-
-  // Grid
-  grid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    paddingHorizontal: spacing.md,
-    gap: 12,
-  },
-  card: {
-    width: '47%',
-    backgroundColor: colors.surface,
-    borderRadius: 12,
-    padding: spacing.md,
-    borderLeftWidth: 3,
-  },
-  cardLabel: {
-    fontSize: fontSize.sm,
-    color: colors.textSecondary,
-  },
-  cardAmount: {
-    fontSize: fontSize.lg,
-    fontWeight: '700',
-    color: colors.text,
-    marginTop: spacing.xs,
-  },
-  cardPct: {
-    fontSize: fontSize.xs,
-    color: colors.textSecondary,
-    marginTop: spacing.xs,
-  },
-
-  // Transactions
-  txSection: { padding: spacing.md },
-  txTitle: {
-    fontSize: fontSize.lg,
-    fontWeight: '700',
-    color: colors.text,
-    marginBottom: 12,
-  },
-  txRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    backgroundColor: colors.surface,
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: spacing.sm,
-  },
-  txLeft: {},
-  txRight: { alignItems: 'flex-end' },
-  txCategory: { fontSize: fontSize.md, color: colors.text },
-  txDate: { fontSize: fontSize.xs, color: colors.textSecondary, marginTop: 2 },
-  txAmount: { fontSize: fontSize.md },
-  txEnvelope: { fontSize: fontSize.xs, color: colors.textSecondary, marginTop: 2 },
-
-  // Error / empty
-  errorText: { color: colors.danger, fontSize: fontSize.md, marginBottom: spacing.md },
-  retryButton: {
-    backgroundColor: colors.primary,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.sm,
-    borderRadius: 8,
-  },
-  retryText: { color: '#fff', fontSize: fontSize.md, fontWeight: '600' },
-  emptyText: { color: colors.textSecondary, fontSize: fontSize.md, textAlign: 'center' },
-});
