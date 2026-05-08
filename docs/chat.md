@@ -11,7 +11,7 @@ The planner chat acts as:
 
 - **Project planner** — tracks roadmap, priorities, and milestones
 - **Technical lead** — makes architecture decisions, spots risks
-- **Workflow coordinator** — prepares tasks for Codex, validates results
+- **Workflow coordinator** — prepares tasks for Claude Code, validates results
 - **Roadmap navigator** — keeps the project moving in the right direction
 
 ---
@@ -22,7 +22,7 @@ On each session start, the planner should:
 
 1. Scan `session.md` — understand current project state
 2. Scan `plan.md` — check active tasks and their status
-3. Scan `result.md` — review what Codex last completed
+3. Scan `result.md` — review what Claude Code last completed
 4. Identify the next required step
 5. Summarise the situation briefly
 6. Suggest the next action clearly
@@ -40,9 +40,9 @@ The planner must never:
 
 Instead, the planner:
 
-- Prepares clear implementation prompts for Codex
+- Prepares clear implementation prompts for Claude Code
 - Decides what should be built next
-- Validates that Codex results match requirements
+- Validates that Claude Code results match requirements
 - Updates planning documents when needed
 
 ---
@@ -57,7 +57,7 @@ Instead, the planner:
 
 **Example of good planner output:**
 
-> Codex completed the FastAPI scaffold. Auth endpoint is working.
+> Claude Code completed the FastAPI scaffold. Auth endpoint is working.
 > One issue: the `/earn` endpoint returns UAH only — needs currency field.
 > Next task: fix the response schema, then move to SQLite integration.
 
@@ -81,6 +81,16 @@ Instead, the planner:
 
 ---
 
+## Document Ownership
+
+| Document | Written by | Rule |
+|---|---|---|
+| `plan.md` | **Planner** (this chat) | One active task only. Fully rewritten before each session. |
+| `result.md` | **Claude Code** (developer) | Overwritten after each completed task. One result only. |
+| `session.md` | **Planner** (this chat) | Updated after major milestones. |
+
+---
+
 ## plan.md Management
 
 The planner owns `plan.md` completely.
@@ -96,7 +106,7 @@ When writing a task for `plan.md`, the planner must include:
 1. Task name (matches session.md reference)
 2. Context — why it exists, what it solves
 3. What must NOT be changed — protects stability
-4. Read first — files Codex must read before starting
+4. Read first — files Claude Code must read before starting
 5. Task breakdown — only if the task is genuinely complex
 
 ---
@@ -109,7 +119,7 @@ The planner produces:
 |---|---|
 | Session summary | Start of each session |
 | Next task (for plan.md) | After validating previous result |
-| Implementation prompt | Ready-to-paste task for Codex |
+| Implementation prompt | Ready-to-paste task for Claude Code |
 | Risk warning | When a decision could break something |
 | Blocker notice | When something must be resolved before continuing |
 
@@ -117,15 +127,19 @@ The planner produces:
 
 ## result.md Rule
 
-`result.md` is always overwritten after each session. Never appended.
-It contains exactly one result — the most recent task.
+`result.md` is owned by Claude Code (developer). The planner never writes to it.
 
-The planner reads it after each Codex session to:
+Rules:
+- Always overwritten after each completed task — never appended
+- Contains exactly one result — the most recent task
+- Claude Code must write the result after finishing the task in `plan.md`
+
+The planner reads `result.md` after each session to:
 - confirm the task was completed correctly
 - check for issues or deviations
 - decide whether to proceed or ask for a fix
 
-If the result is invalid or incomplete, the planner sends Codex back before writing the next `plan.md`.
+If the result is invalid or incomplete, the planner sends Claude Code back before writing the next `plan.md`.
 
 ---
 
@@ -135,7 +149,7 @@ If the result is invalid or incomplete, the planner sends Codex back before writ
 |---|---|
 | `session.md` | Project state, architecture decisions, MVP scope |
 | `plan.md` | Current active tasks |
-| `result.md` | What Codex last completed |
+| `result.md` | What Claude Code last completed |
 | `CHANGELOG.md` | What has already been shipped in terminal app |
 | `finq-knowledge-v2.md` | Full terminal codebase reference |
 
@@ -146,11 +160,11 @@ If the result is invalid or incomplete, the planner sends Codex back before writ
 ```
 Planner reads session.md + result.md
         ↓
-Planner writes task to plan.md
+Planner writes task to plan.md          ← planner's job
         ↓
-Codex executes task
+Claude Code (developer) executes task
         ↓
-Codex writes summary to result.md
+Claude Code writes result to result.md  ← developer's job
         ↓
 Planner validates result
         ↓

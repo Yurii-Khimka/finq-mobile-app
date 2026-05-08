@@ -3,3 +3,5 @@ uvicorn
 psycopg2-binary
 python-jose[cryptography]
 python-dotenv
+sqlalchemy
+alembic

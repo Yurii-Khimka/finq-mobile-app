@@ -235,6 +235,7 @@ This is especially important while architecture is still stabilising.
 
 > Updated by planner at the end of each session.
 
-**Stage:** Pre-development. Planning complete.
-**Next step:** Repository setup + FastAPI project scaffold.
+**Stage:** Phase A — Backend Foundation.
+**Completed:** TASK-001 (FastAPI scaffold), TASK-001a (initial commit + push).
+**Next step:** TASK-002 — PostgreSQL schema + SQLAlchemy models.
 **Blockers:** None.
