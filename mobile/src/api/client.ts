@@ -49,14 +49,11 @@ export const auth = {
       method: 'POST',
       body: JSON.stringify({ email, password }),
     }),
-  login: (email: string, password: string) => {
-    const form = new URLSearchParams({ username: email, password });
-    return request<AuthTokens>('/auth/token', {
+  login: (email: string, password: string) =>
+    request<AuthTokens>('/auth/login', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: form.toString(),
-    });
-  },
+      body: JSON.stringify({ email, password }),
+    }),
 };
 
 // Finance
