@@ -8,48 +8,48 @@
 ---
 
 ## Task
-TASK-009 — Home screen (balances + envelopes + recent transactions)
+TASK-010 — Add Expense flow (NumPad + category picker + impact preview)
 
 ## Status
 COMPLETED
 
 ## What was done
 
-### 1. Created format helpers (`mobile/src/utils/format.ts`)
-- `formatCurrency(amount, 'USD' | 'UAH')` → `$1,234.56` or `₴1,234.56`
-- `formatDate(dateString)` → "Today", "Yesterday", or "May 8"
-- `envelopeLabel(key)` → human-readable name ("non_mandatory" → "Non-Mandatory")
+### 1. NumPad component (`mobile/src/components/NumPad.tsx`)
+- Reusable 4×3 grid: digits 0-9, decimal point, backspace
+- Haptic feedback via `expo-haptics` on every tap
+- Enforces max 10 digits before decimal, max 2 decimal places
+- Prevents leading zeros and duplicate dots
 
-### 2. Replaced Home screen (`mobile/app/(tabs)/index.tsx`)
+### 2. Expense screen (`mobile/app/(tabs)/expense.tsx`)
 
-**Section A — Total Balance header**
-- Sums all 4 envelopes, converts to USD using rate from `GET /finance/rate?currency=USD`
-- Large centered `$12,345.67` with UAH equivalent below
-- Falls back to UAH-only if rate fetch fails
+**Input mode:**
+- Amount display with currency symbol, updates via NumPad
+- Currency toggle pills: UAH (default), USD, EUR
+- Category picker: fetched from API, grouped by envelope with section headers
+- Selected chip gets indigo border highlight, colored dot per envelope
+- Confirm button disabled until amount > 0 AND category selected
+- Loading spinner on confirm while fetching impact
 
-**Section B — Envelope cards (2×2 grid)**
-- 4 cards with color-coded left border (indigo, green, amber, pink)
-- Shows envelope name, USD balance, percentage label
-- Responsive 47% width cards with 12px gap
+**Confirmation mode:**
+- Impact preview card showing: spend summary, spendable before/after, daily limit before/after
+- Risk badge (GREEN/YELLOW/RED) color-coded
+- Waterfall breach warning when triggered
+- Cancel → back to input, Confirm Expense → submit
+- Double-tap protection: button disabled while submitting
 
-**Section C — Recent transactions (last 10)**
-- Fetches via `finance.getHistory('all', 10)`
-- Each row: category, date, amount (red for expense, green for income), envelope
-- Empty state: "No transactions yet"
+**After submit:**
+- Success → navigates to Home tab
+- Breach note → Alert with warning, then navigates to Home
+- Errors: 401 → login redirect, 502 → "Exchange rate unavailable", 404 → "Category not found"
 
-### 3. Data fetching
-- Fetches on mount and on screen focus (`useFocusEffect`)
-- Parallel fetch: `Promise.all([getBalances(), getHistory(), getRate()])`
-- Loading spinner while fetching
-- 401 → clears token and redirects to login
-- Other errors → inline error with retry button
-
-### 4. Pull-to-refresh
-- `RefreshControl` on `ScrollView`
+### 3. New dependency
+- `expo-haptics` installed for NumPad feedback
 
 ## Files changed
-- `mobile/src/utils/format.ts` — NEW: currency/date/envelope formatting helpers
-- `mobile/app/(tabs)/index.tsx` — replaced placeholder with full home screen
+- `mobile/src/components/NumPad.tsx` — NEW: reusable numpad component
+- `mobile/app/(tabs)/expense.tsx` — replaced placeholder with full expense flow
+- `mobile/package.json` — added expo-haptics
 
 ## Verification
 ```
@@ -57,4 +57,4 @@ cd mobile && npx tsc --noEmit  → 0 errors
 ```
 
 ## Changelog entry
-- **TASK-009:** Home screen with live balances, envelope cards, recent transactions, pull-to-refresh
+- **TASK-010:** Expense flow with custom NumPad, category picker, currency toggle, impact preview, and breach warnings
