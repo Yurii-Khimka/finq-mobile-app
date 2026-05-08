@@ -9,8 +9,10 @@ import {
   RefreshControl,
 } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import { fontSize, spacing } from '../../src/tokens';
 import { useTheme } from '../../src/context/ThemeContext';
+import { getCategoryIcon } from '../../src/utils/categoryIcons';
 import { finance } from '../../src/api/client';
 import { clearToken } from '../../src/store/auth';
 import type { BalancesResponse, TransactionResponse } from '../../src/types/finance';
@@ -265,7 +267,10 @@ export default function HomeScreen() {
             return (
               <View key={tx.id} style={styles.txRow}>
                 <View style={styles.txLeft}>
-                  <Text style={styles.txCategory}>{tx.category}</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                    <Ionicons name={getCategoryIcon(tx.category)} size={16} color={colors.textSecondary} style={{ marginRight: 6 }} />
+                    <Text style={styles.txCategory}>{tx.category}</Text>
+                  </View>
                   <Text style={styles.txDate}>{formatDate(tx.date)}</Text>
                 </View>
                 <View style={styles.txRight}>

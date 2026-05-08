@@ -10,8 +10,10 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import { fontSize, spacing } from '../../src/tokens';
 import { useTheme } from '../../src/context/ThemeContext';
+import { getCategoryIcon } from '../../src/utils/categoryIcons';
 import { finance } from '../../src/api/client';
 import { clearToken } from '../../src/store/auth';
 import type { CategoryResponse, ImpactResponse } from '../../src/types/finance';
@@ -221,7 +223,6 @@ export default function ExpenseScreen() {
       borderColor: 'transparent',
     },
     chipSelected: { borderColor: colors.primary },
-    chipDot: { width: 8, height: 8, borderRadius: 4, marginRight: 6 },
     chipText: { fontSize: fontSize.sm, color: colors.text },
     emptyText: { color: colors.textSecondary, fontSize: fontSize.md, textAlign: 'center', marginTop: spacing.lg },
     padSection: { paddingHorizontal: spacing.md, paddingBottom: spacing.md },
@@ -413,11 +414,11 @@ export default function ExpenseScreen() {
                     ]}
                     onPress={() => setSelectedCategory(cat.name)}
                   >
-                    <View
-                      style={[
-                        styles.chipDot,
-                        { backgroundColor: envelopeColors[cat.envelope_name] ?? colors.textSecondary },
-                      ]}
+                    <Ionicons
+                      name={getCategoryIcon(cat.name)}
+                      size={16}
+                      color={envelopeColors[cat.envelope_name] ?? colors.textSecondary}
+                      style={{ marginRight: 6 }}
                     />
                     <Text style={styles.chipText}>{cat.name}</Text>
                   </TouchableOpacity>

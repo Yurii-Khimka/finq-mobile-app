@@ -11,8 +11,10 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import { fontSize, spacing } from '../../src/tokens';
 import { useTheme } from '../../src/context/ThemeContext';
+import { getCategoryIcon } from '../../src/utils/categoryIcons';
 import { finance } from '../../src/api/client';
 import { clearToken } from '../../src/store/auth';
 import type { TransactionResponse } from '../../src/types/finance';
@@ -230,7 +232,10 @@ export default function HistoryScreen() {
       <SwipeableRow onDelete={() => handleDelete(item.id)}>
         <View style={styles.txRow}>
           <View style={styles.txLeft}>
-            <Text style={styles.txCategory}>{item.category}</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <Ionicons name={getCategoryIcon(item.category)} size={16} color={colors.textSecondary} style={{ marginRight: 6 }} />
+              <Text style={styles.txCategory}>{item.category}</Text>
+            </View>
             <Text style={styles.txEnvelope}>{envelopeLabel(item.envelope)}</Text>
           </View>
           <View style={styles.txRight}>
