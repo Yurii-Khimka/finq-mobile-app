@@ -112,6 +112,15 @@ export function upsertConfig(config: ConfigResponse): void {
   db.runSync('INSERT OR REPLACE INTO config (key, value) VALUES (?, ?)', 'base_currency', config.base_currency);
 }
 
+export function getConfigValue(key: string): string | null {
+  const row = db.getFirstSync<{ value: string }>('SELECT value FROM config WHERE key = ?', key);
+  return row?.value ?? null;
+}
+
+export function setConfigValue(key: string, value: string): void {
+  db.runSync('INSERT OR REPLACE INTO config (key, value) VALUES (?, ?)', key, value);
+}
+
 // ── Cache meta ──
 
 export function getCacheTimestamp(key: string): string | null {

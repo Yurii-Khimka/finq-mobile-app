@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { Slot, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
@@ -7,15 +7,17 @@ import { initDB } from '../src/db';
 import { syncAll, replayPendingWrites } from '../src/db/sync';
 import { useNetworkStatus } from '../src/hooks/useNetworkStatus';
 import { getPendingCount } from '../src/db/queries';
-import { colors, fontSize } from '../src/tokens';
+import { fontSize } from '../src/tokens';
+import { ThemeProvider, useTheme } from '../src/context/ThemeContext';
 
-export default function RootLayout() {
+function RootContent() {
   const [ready, setReady] = useState(false);
   const [loggedIn, setLoggedIn] = useState(false);
   const segments = useSegments();
   const router = useRouter();
   const { isOnline } = useNetworkStatus();
   const [pendingCount, setPendingCount] = useState(0);
+  const { theme, colors } = useTheme();
 
   useEffect(() => {
     initDB();
@@ -50,11 +52,36 @@ export default function RootLayout() {
     }
   }, [ready, loggedIn, segments]);
 
+  const styles = useMemo(() => StyleSheet.create({
+    offlineBar: {
+      backgroundColor: colors.warning,
+      paddingVertical: 6,
+      paddingHorizontal: 16,
+      alignItems: 'center',
+    },
+    offlineText: {
+      color: '#fff',
+      fontSize: fontSize.xs,
+      fontWeight: '600',
+    },
+    pendingBar: {
+      backgroundColor: colors.surfaceAlt,
+      paddingVertical: 4,
+      paddingHorizontal: 16,
+      alignItems: 'center',
+    },
+    pendingText: {
+      color: colors.warning,
+      fontSize: fontSize.xs,
+      fontWeight: '600',
+    },
+  }), [colors]);
+
   if (!ready) return null;
 
   return (
     <>
-      <StatusBar style="light" />
+      <StatusBar style={theme === 'light' ? 'dark' : 'light'} />
       {!isOnline && (
         <View style={styles.offlineBar}>
           <Text style={styles.offlineText}>
@@ -74,27 +101,10 @@ export default function RootLayout() {
   );
 }
 
-const styles = StyleSheet.create({
-  offlineBar: {
-    backgroundColor: colors.warning,
-    paddingVertical: 6,
-    paddingHorizontal: 16,
-    alignItems: 'center',
-  },
-  offlineText: {
-    color: '#fff',
-    fontSize: fontSize.xs,
-    fontWeight: '600',
-  },
-  pendingBar: {
-    backgroundColor: colors.surfaceAlt,
-    paddingVertical: 4,
-    paddingHorizontal: 16,
-    alignItems: 'center',
-  },
-  pendingText: {
-    color: colors.warning,
-    fontSize: fontSize.xs,
-    fontWeight: '600',
-  },
-});
+export default function RootLayout() {
+  return (
+    <ThemeProvider>
+      <RootContent />
+    </ThemeProvider>
+  );
+}

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -10,7 +10,8 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { colors, fontSize, spacing } from '../../src/tokens';
+import { fontSize, spacing } from '../../src/tokens';
+import { useTheme } from '../../src/context/ThemeContext';
 import { finance } from '../../src/api/client';
 import { clearToken } from '../../src/store/auth';
 import type { CategoryResponse, ImpactResponse } from '../../src/types/finance';
@@ -28,21 +29,9 @@ const CURRENCY_SYMBOLS: Record<Currency, string> = {
   EUR: '€',
 };
 
-const ENVELOPE_COLORS: Record<string, string> = {
-  mandatory: colors.primary,
-  non_mandatory: colors.success,
-  investments: colors.warning,
-  dreams: '#EC4899',
-};
-
-const RISK_COLORS: Record<string, string> = {
-  GREEN: colors.success,
-  YELLOW: colors.warning,
-  RED: colors.danger,
-};
-
 export default function ExpenseScreen() {
   const router = useRouter();
+  const { colors } = useTheme();
 
   // Input state
   const [amount, setAmount] = useState('');
@@ -62,6 +51,19 @@ export default function ExpenseScreen() {
 
   const numericAmount = parseFloat(amount) || 0;
   const canConfirm = numericAmount > 0 && selectedCategory !== '';
+
+  const envelopeColors: Record<string, string> = useMemo(() => ({
+    mandatory: colors.envelopeMandatory,
+    non_mandatory: colors.envelopeNonMandatory,
+    investments: colors.envelopeInvestments,
+    dreams: colors.envelopeDreams,
+  }), [colors]);
+
+  const riskColors: Record<string, string> = useMemo(() => ({
+    GREEN: colors.success,
+    YELLOW: colors.warning,
+    RED: colors.danger,
+  }), [colors]);
 
   // Fetch categories on mount
   useEffect(() => {
@@ -176,18 +178,127 @@ export default function ExpenseScreen() {
     setError('');
   }
 
-  function resetForm() {
-    setAmount('');
-    setSelectedCategory('');
-    setCurrency('UAH');
-    setMode('input');
-    setImpact(null);
-    setError('');
-  }
+  const styles = useMemo(() => StyleSheet.create({
+    safe: { flex: 1, backgroundColor: colors.background },
+    amountSection: { alignItems: 'center', paddingTop: spacing.md, paddingBottom: spacing.sm },
+    amountText: {
+      fontSize: fontSize.xxl,
+      fontWeight: '700',
+      color: colors.text,
+    },
+    currencyRow: {
+      flexDirection: 'row',
+      gap: 8,
+      marginTop: spacing.sm,
+    },
+    currencyPill: {
+      paddingHorizontal: 12,
+      paddingVertical: 4,
+      borderRadius: 16,
+      backgroundColor: colors.surface,
+    },
+    currencyPillActive: { backgroundColor: colors.primary },
+    currencyPillText: { fontSize: fontSize.sm, color: colors.textSecondary },
+    currencyPillTextActive: { color: '#fff' },
+    categoryScroll: { flex: 1 },
+    categoryContent: { paddingHorizontal: spacing.md, paddingBottom: spacing.sm },
+    sectionHeader: {
+      fontSize: fontSize.sm,
+      color: colors.textSecondary,
+      fontWeight: '600',
+      marginTop: 12,
+      marginBottom: 8,
+    },
+    chipGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+    chip: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: colors.surface,
+      borderRadius: 8,
+      paddingVertical: 8,
+      paddingHorizontal: 12,
+      borderWidth: 2,
+      borderColor: 'transparent',
+    },
+    chipSelected: { borderColor: colors.primary },
+    chipDot: { width: 8, height: 8, borderRadius: 4, marginRight: 6 },
+    chipText: { fontSize: fontSize.sm, color: colors.text },
+    emptyText: { color: colors.textSecondary, fontSize: fontSize.md, textAlign: 'center', marginTop: spacing.lg },
+    padSection: { paddingHorizontal: spacing.md, paddingBottom: spacing.md },
+    confirmButton: {
+      width: '100%',
+      height: 52,
+      backgroundColor: colors.primary,
+      borderRadius: 12,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginTop: 12,
+    },
+    buttonDisabled: { backgroundColor: colors.surfaceAlt },
+    confirmButtonText: { color: '#fff', fontSize: fontSize.md, fontWeight: '600' },
+    confirmButtonTextDisabled: { color: colors.textSecondary },
+    error: { color: colors.danger, fontSize: fontSize.sm, textAlign: 'center', marginBottom: spacing.sm },
+    errorBottom: { color: colors.danger, fontSize: fontSize.sm, textAlign: 'center', paddingHorizontal: spacing.md },
+    confirmContainer: { flex: 1, justifyContent: 'center', padding: spacing.lg },
+    impactCard: {
+      backgroundColor: colors.surface,
+      borderRadius: 12,
+      padding: spacing.lg,
+    },
+    impactTitle: {
+      fontSize: fontSize.lg,
+      fontWeight: '700',
+      color: colors.text,
+      marginBottom: spacing.md,
+    },
+    impactRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      marginBottom: spacing.sm,
+    },
+    impactLabel: { fontSize: fontSize.sm, color: colors.textSecondary },
+    impactValue: { fontSize: fontSize.sm, color: colors.text },
+    riskBadge: {
+      alignSelf: 'flex-start',
+      paddingHorizontal: 12,
+      paddingVertical: 4,
+      borderRadius: 12,
+      marginTop: spacing.sm,
+    },
+    riskText: { color: '#fff', fontSize: fontSize.sm, fontWeight: '700' },
+    breachWarning: {
+      color: colors.warning,
+      fontSize: fontSize.sm,
+      marginTop: spacing.sm,
+    },
+    confirmButtons: {
+      flexDirection: 'row',
+      gap: 12,
+      marginTop: spacing.lg,
+    },
+    cancelButton: {
+      flex: 1,
+      height: 52,
+      backgroundColor: colors.surfaceAlt,
+      borderRadius: 12,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    cancelButtonText: { color: colors.text, fontSize: fontSize.md, fontWeight: '600' },
+    submitButton: {
+      flex: 1,
+      height: 52,
+      backgroundColor: colors.primary,
+      borderRadius: 12,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    submitButtonText: { color: '#fff', fontSize: fontSize.md, fontWeight: '600' },
+  }), [colors]);
 
   // ── Confirmation mode ──
   if (mode === 'confirm' && impact) {
-    const riskColor = RISK_COLORS[impact.risk_score] ?? colors.textSecondary;
+    const riskColor = riskColors[impact.risk_score] ?? colors.textSecondary;
     return (
       <SafeAreaView style={styles.safe}>
         <View style={styles.confirmContainer}>
@@ -305,7 +416,7 @@ export default function ExpenseScreen() {
                     <View
                       style={[
                         styles.chipDot,
-                        { backgroundColor: ENVELOPE_COLORS[cat.envelope_name] ?? colors.textSecondary },
+                        { backgroundColor: envelopeColors[cat.envelope_name] ?? colors.textSecondary },
                       ]}
                     />
                     <Text style={styles.chipText}>{cat.name}</Text>
@@ -346,132 +457,3 @@ export default function ExpenseScreen() {
     </SafeAreaView>
   );
 }
-
-const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.background },
-
-  // Amount
-  amountSection: { alignItems: 'center', paddingTop: spacing.md, paddingBottom: spacing.sm },
-  amountText: {
-    fontSize: fontSize.xxl,
-    fontWeight: '700',
-    color: colors.text,
-  },
-  currencyRow: {
-    flexDirection: 'row',
-    gap: 8,
-    marginTop: spacing.sm,
-  },
-  currencyPill: {
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-    borderRadius: 16,
-    backgroundColor: colors.surface,
-  },
-  currencyPillActive: { backgroundColor: colors.primary },
-  currencyPillText: { fontSize: fontSize.sm, color: colors.textSecondary },
-  currencyPillTextActive: { color: '#fff' },
-
-  // Categories
-  categoryScroll: { flex: 1 },
-  categoryContent: { paddingHorizontal: spacing.md, paddingBottom: spacing.sm },
-  sectionHeader: {
-    fontSize: fontSize.sm,
-    color: colors.textSecondary,
-    fontWeight: '600',
-    marginTop: 12,
-    marginBottom: 8,
-  },
-  chipGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  chip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.surface,
-    borderRadius: 8,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderWidth: 2,
-    borderColor: 'transparent',
-  },
-  chipSelected: { borderColor: colors.primary },
-  chipDot: { width: 8, height: 8, borderRadius: 4, marginRight: 6 },
-  chipText: { fontSize: fontSize.sm, color: colors.text },
-  emptyText: { color: colors.textSecondary, fontSize: fontSize.md, textAlign: 'center', marginTop: spacing.lg },
-
-  // NumPad area
-  padSection: { paddingHorizontal: spacing.md, paddingBottom: spacing.md },
-  confirmButton: {
-    width: '100%',
-    height: 52,
-    backgroundColor: colors.primary,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 12,
-  },
-  buttonDisabled: { backgroundColor: colors.surfaceAlt },
-  confirmButtonText: { color: '#fff', fontSize: fontSize.md, fontWeight: '600' },
-  confirmButtonTextDisabled: { color: colors.textSecondary },
-
-  // Error
-  error: { color: colors.danger, fontSize: fontSize.sm, textAlign: 'center', marginBottom: spacing.sm },
-  errorBottom: { color: colors.danger, fontSize: fontSize.sm, textAlign: 'center', paddingHorizontal: spacing.md },
-
-  // Confirmation mode
-  confirmContainer: { flex: 1, justifyContent: 'center', padding: spacing.lg },
-  impactCard: {
-    backgroundColor: colors.surface,
-    borderRadius: 12,
-    padding: spacing.lg,
-  },
-  impactTitle: {
-    fontSize: fontSize.lg,
-    fontWeight: '700',
-    color: colors.text,
-    marginBottom: spacing.md,
-  },
-  impactRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: spacing.sm,
-  },
-  impactLabel: { fontSize: fontSize.sm, color: colors.textSecondary },
-  impactValue: { fontSize: fontSize.sm, color: colors.text },
-  riskBadge: {
-    alignSelf: 'flex-start',
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-    borderRadius: 12,
-    marginTop: spacing.sm,
-  },
-  riskText: { color: '#fff', fontSize: fontSize.sm, fontWeight: '700' },
-  breachWarning: {
-    color: colors.warning,
-    fontSize: fontSize.sm,
-    marginTop: spacing.sm,
-  },
-
-  confirmButtons: {
-    flexDirection: 'row',
-    gap: 12,
-    marginTop: spacing.lg,
-  },
-  cancelButton: {
-    flex: 1,
-    height: 52,
-    backgroundColor: colors.surfaceAlt,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  cancelButtonText: { color: colors.text, fontSize: fontSize.md, fontWeight: '600' },
-  submitButton: {
-    flex: 1,
-    height: 52,
-    backgroundColor: colors.primary,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  submitButtonText: { color: '#fff', fontSize: fontSize.md, fontWeight: '600' },
-});
