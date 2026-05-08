@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -9,7 +9,8 @@ import {
   RefreshControl,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { colors, fontSize, spacing } from '../../src/tokens';
+import { fontSize, spacing } from '../../src/tokens';
+import { useTheme } from '../../src/context/ThemeContext';
 import { finance } from '../../src/api/client';
 import { clearToken } from '../../src/store/auth';
 import type {
@@ -20,19 +21,6 @@ import type {
 } from '../../src/types/finance';
 import { formatCurrency, envelopeLabel } from '../../src/utils/format';
 
-const ENVELOPE_COLORS: Record<string, string> = {
-  mandatory: colors.primary,
-  non_mandatory: colors.success,
-  investments: colors.warning,
-  dreams: '#EC4899',
-};
-
-const HEALTH_COLORS: Record<string, string> = {
-  healthy: colors.success,
-  warning: colors.warning,
-  critical: colors.danger,
-};
-
 const SUSTAINABILITY_KEYS = [
   { key: 'mandatory', burnKey: 'mandatory_burn' as const, dtzKey: 'days_to_zero_mandatory' as const, safeKey: 'safe_daily_mandatory' as const },
   { key: 'non_mandatory', burnKey: 'non_mandatory_burn' as const, dtzKey: 'days_to_zero_non_mandatory' as const, safeKey: 'safe_daily_non_mandatory' as const },
@@ -40,6 +28,7 @@ const SUSTAINABILITY_KEYS = [
 
 export default function AuditScreen() {
   const router = useRouter();
+  const { colors } = useTheme();
 
   const [audit, setAudit] = useState<AuditResponse | null>(null);
   const [sustainability, setSustainability] = useState<SustainabilityResponse | null>(null);
@@ -48,6 +37,19 @@ export default function AuditScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
+
+  const envelopeColors: Record<string, string> = useMemo(() => ({
+    mandatory: colors.envelopeMandatory,
+    non_mandatory: colors.envelopeNonMandatory,
+    investments: colors.envelopeInvestments,
+    dreams: colors.envelopeDreams,
+  }), [colors]);
+
+  const healthColors: Record<string, string> = useMemo(() => ({
+    healthy: colors.success,
+    warning: colors.warning,
+    critical: colors.danger,
+  }), [colors]);
 
   const fetchAll = useCallback(async (isRefresh = false) => {
     if (isRefresh) setRefreshing(true); else setLoading(true);
@@ -81,6 +83,123 @@ export default function AuditScreen() {
     fetchAll();
   }, [fetchAll]);
 
+  const styles = useMemo(() => StyleSheet.create({
+    scroll: { flex: 1, backgroundColor: colors.background },
+    content: { padding: spacing.md, paddingBottom: spacing.xl },
+    center: {
+      flex: 1,
+      backgroundColor: colors.background,
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: spacing.lg,
+    },
+    card: {
+      backgroundColor: colors.surface,
+      borderRadius: 12,
+      padding: spacing.md,
+      marginBottom: 12,
+    },
+    sectionTitle: {
+      fontSize: fontSize.md,
+      color: colors.text,
+      fontWeight: '600',
+      marginBottom: spacing.sm,
+    },
+    healthRow: { alignItems: 'center', marginBottom: spacing.sm },
+    healthBadge: {
+      height: 40,
+      borderRadius: 20,
+      paddingHorizontal: 20,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    healthBadgeText: { color: '#fff', fontSize: fontSize.lg, fontWeight: '700' },
+    spendableAmount: {
+      fontSize: fontSize.xxl,
+      fontWeight: '700',
+      color: colors.text,
+      textAlign: 'center',
+    },
+    spendableLabel: {
+      fontSize: fontSize.sm,
+      color: colors.textSecondary,
+      textAlign: 'center',
+      marginTop: 2,
+    },
+    safeDaily: {
+      fontSize: fontSize.sm,
+      color: colors.success,
+      textAlign: 'center',
+      marginTop: spacing.sm,
+    },
+    daysRemaining: {
+      fontSize: fontSize.xs,
+      color: colors.textSecondary,
+      textAlign: 'center',
+      marginTop: 4,
+    },
+    burnRate: {
+      fontSize: fontSize.lg,
+      fontWeight: '700',
+      color: colors.text,
+    },
+    projection: { fontSize: fontSize.sm, marginTop: 4 },
+    totalSpent: {
+      fontSize: fontSize.sm,
+      color: colors.textSecondary,
+      marginTop: 4,
+    },
+    noBreach: { fontSize: fontSize.sm, color: colors.success },
+    breachSummary: { fontSize: fontSize.sm, color: colors.danger, marginBottom: spacing.sm },
+    breachEnvRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginBottom: 4,
+    },
+    envDot: { width: 8, height: 8, borderRadius: 4, marginRight: 8 },
+    breachEnvLabel: { flex: 1, fontSize: fontSize.sm, color: colors.text },
+    breachEnvAmount: { fontSize: fontSize.sm, color: colors.text },
+    topBreachRow: { marginTop: spacing.sm },
+    topBreachCategory: { fontSize: fontSize.sm, color: colors.text },
+    topBreachDetail: { fontSize: fontSize.xs, color: colors.textSecondary, marginTop: 2 },
+    susRow: {
+      flexDirection: 'row',
+      backgroundColor: colors.background,
+      borderRadius: 8,
+      overflow: 'hidden',
+      marginBottom: 8,
+    },
+    susBorder: { width: 4 },
+    susContent: { flex: 1, padding: 12 },
+    susName: { fontSize: fontSize.sm, fontWeight: '700', color: colors.text },
+    susDetail: { fontSize: fontSize.xs, color: colors.textSecondary, marginTop: 2 },
+    anomalyRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      marginBottom: 8,
+    },
+    anomalyLeft: { flex: 1 },
+    anomalyCategory: { fontSize: fontSize.sm, color: colors.text },
+    anomalyAmounts: { fontSize: fontSize.xs, color: colors.textSecondary, marginTop: 2 },
+    ratioBadge: {
+      backgroundColor: colors.warning,
+      borderRadius: 12,
+      paddingHorizontal: 8,
+      paddingVertical: 2,
+    },
+    ratioText: { color: '#fff', fontSize: fontSize.xs, fontWeight: '700' },
+    advisorText: { fontSize: fontSize.sm, color: colors.textSecondary, lineHeight: 20 },
+    errorText: { color: colors.danger, fontSize: fontSize.md, marginBottom: spacing.md },
+    retryButton: {
+      backgroundColor: colors.primary,
+      paddingHorizontal: spacing.lg,
+      paddingVertical: spacing.sm,
+      borderRadius: 8,
+    },
+    retryText: { color: '#fff', fontSize: fontSize.md, fontWeight: '600' },
+  }), [colors]);
+
   if (loading) {
     return (
       <View style={styles.center}>
@@ -101,7 +220,7 @@ export default function AuditScreen() {
   }
 
   const healthSignal = audit?.health_signal?.toLowerCase() ?? 'healthy';
-  const healthColor = HEALTH_COLORS[healthSignal] ?? colors.textSecondary;
+  const healthColor = healthColors[healthSignal] ?? colors.textSecondary;
   const healthLabel = healthSignal.charAt(0).toUpperCase() + healthSignal.slice(1);
 
   // Burn rate projection
@@ -188,7 +307,7 @@ export default function AuditScreen() {
               </Text>
               {breachEnvelopes.map(([env, amt]) => (
                 <View key={env} style={styles.breachEnvRow}>
-                  <View style={[styles.envDot, { backgroundColor: ENVELOPE_COLORS[env] ?? colors.textSecondary }]} />
+                  <View style={[styles.envDot, { backgroundColor: envelopeColors[env] ?? colors.textSecondary }]} />
                   <Text style={styles.breachEnvLabel}>{envelopeLabel(env)}</Text>
                   <Text style={styles.breachEnvAmount}>{formatCurrency(amt as number, 'UAH')}</Text>
                 </View>
@@ -214,7 +333,7 @@ export default function AuditScreen() {
           <Text style={styles.sectionTitle}>Sustainability</Text>
           {SUSTAINABILITY_KEYS.map(({ key, burnKey, dtzKey, safeKey }) => (
             <View key={key} style={styles.susRow}>
-              <View style={[styles.susBorder, { backgroundColor: ENVELOPE_COLORS[key] }]} />
+              <View style={[styles.susBorder, { backgroundColor: envelopeColors[key] }]} />
               <View style={styles.susContent}>
                 <Text style={styles.susName}>{envelopeLabel(key)}</Text>
                 <Text style={styles.susDetail}>
@@ -233,7 +352,7 @@ export default function AuditScreen() {
           {/* Investments & Dreams — simpler */}
           {(['investments', 'dreams'] as const).map((key) => (
             <View key={key} style={styles.susRow}>
-              <View style={[styles.susBorder, { backgroundColor: ENVELOPE_COLORS[key] }]} />
+              <View style={[styles.susBorder, { backgroundColor: envelopeColors[key] }]} />
               <View style={styles.susContent}>
                 <Text style={styles.susName}>{envelopeLabel(key)}</Text>
                 <Text style={styles.susDetail}>Reserve envelope</Text>
@@ -273,136 +392,3 @@ export default function AuditScreen() {
     </ScrollView>
   );
 }
-
-const styles = StyleSheet.create({
-  scroll: { flex: 1, backgroundColor: colors.background },
-  content: { padding: spacing.md, paddingBottom: spacing.xl },
-  center: {
-    flex: 1,
-    backgroundColor: colors.background,
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: spacing.lg,
-  },
-
-  // Card
-  card: {
-    backgroundColor: colors.surface,
-    borderRadius: 12,
-    padding: spacing.md,
-    marginBottom: 12,
-  },
-  sectionTitle: {
-    fontSize: fontSize.md,
-    color: colors.text,
-    fontWeight: '600',
-    marginBottom: spacing.sm,
-  },
-
-  // Health signal
-  healthRow: { alignItems: 'center', marginBottom: spacing.sm },
-  healthBadge: {
-    height: 40,
-    borderRadius: 20,
-    paddingHorizontal: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  healthBadgeText: { color: '#fff', fontSize: fontSize.lg, fontWeight: '700' },
-  spendableAmount: {
-    fontSize: fontSize.xxl,
-    fontWeight: '700',
-    color: colors.text,
-    textAlign: 'center',
-  },
-  spendableLabel: {
-    fontSize: fontSize.sm,
-    color: colors.textSecondary,
-    textAlign: 'center',
-    marginTop: 2,
-  },
-  safeDaily: {
-    fontSize: fontSize.sm,
-    color: colors.success,
-    textAlign: 'center',
-    marginTop: spacing.sm,
-  },
-  daysRemaining: {
-    fontSize: fontSize.xs,
-    color: colors.textSecondary,
-    textAlign: 'center',
-    marginTop: 4,
-  },
-
-  // Burn rate
-  burnRate: {
-    fontSize: fontSize.lg,
-    fontWeight: '700',
-    color: colors.text,
-  },
-  projection: { fontSize: fontSize.sm, marginTop: 4 },
-  totalSpent: {
-    fontSize: fontSize.sm,
-    color: colors.textSecondary,
-    marginTop: 4,
-  },
-
-  // Breaches
-  noBreach: { fontSize: fontSize.sm, color: colors.success },
-  breachSummary: { fontSize: fontSize.sm, color: colors.danger, marginBottom: spacing.sm },
-  breachEnvRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 4,
-  },
-  envDot: { width: 8, height: 8, borderRadius: 4, marginRight: 8 },
-  breachEnvLabel: { flex: 1, fontSize: fontSize.sm, color: colors.text },
-  breachEnvAmount: { fontSize: fontSize.sm, color: colors.text },
-  topBreachRow: { marginTop: spacing.sm },
-  topBreachCategory: { fontSize: fontSize.sm, color: colors.text },
-  topBreachDetail: { fontSize: fontSize.xs, color: colors.textSecondary, marginTop: 2 },
-
-  // Sustainability
-  susRow: {
-    flexDirection: 'row',
-    backgroundColor: colors.background,
-    borderRadius: 8,
-    overflow: 'hidden',
-    marginBottom: 8,
-  },
-  susBorder: { width: 4 },
-  susContent: { flex: 1, padding: 12 },
-  susName: { fontSize: fontSize.sm, fontWeight: '700', color: colors.text },
-  susDetail: { fontSize: fontSize.xs, color: colors.textSecondary, marginTop: 2 },
-
-  // Anomalies
-  anomalyRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 8,
-  },
-  anomalyLeft: { flex: 1 },
-  anomalyCategory: { fontSize: fontSize.sm, color: colors.text },
-  anomalyAmounts: { fontSize: fontSize.xs, color: colors.textSecondary, marginTop: 2 },
-  ratioBadge: {
-    backgroundColor: colors.warning,
-    borderRadius: 12,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-  },
-  ratioText: { color: '#fff', fontSize: fontSize.xs, fontWeight: '700' },
-
-  // Advisor
-  advisorText: { fontSize: fontSize.sm, color: colors.textSecondary, lineHeight: 20 },
-
-  // Error
-  errorText: { color: colors.danger, fontSize: fontSize.md, marginBottom: spacing.md },
-  retryButton: {
-    backgroundColor: colors.primary,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.sm,
-    borderRadius: 8,
-  },
-  retryText: { color: '#fff', fontSize: fontSize.md, fontWeight: '600' },
-});

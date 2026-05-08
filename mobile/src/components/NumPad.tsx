@@ -1,6 +1,8 @@
+import { useMemo } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import * as Haptics from 'expo-haptics';
-import { colors, fontSize } from '../tokens';
+import { fontSize } from '../tokens';
+import { useTheme } from '../context/ThemeContext';
 
 const KEYS = [
   ['1', '2', '3'],
@@ -15,6 +17,8 @@ interface NumPadProps {
 }
 
 export default function NumPad({ value, onValueChange }: NumPadProps) {
+  const { colors } = useTheme();
+
   function handlePress(key: string) {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
@@ -46,6 +50,23 @@ export default function NumPad({ value, onValueChange }: NumPadProps) {
     onValueChange(value + key);
   }
 
+  const styles = useMemo(() => StyleSheet.create({
+    container: { gap: 8 },
+    row: { flexDirection: 'row', justifyContent: 'center', gap: 8 },
+    key: {
+      width: 70,
+      height: 56,
+      backgroundColor: colors.surface,
+      borderRadius: 12,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    keyText: {
+      fontSize: fontSize.xl,
+      color: colors.text,
+    },
+  }), [colors]);
+
   return (
     <View style={styles.container}>
       {KEYS.map((row, ri) => (
@@ -65,20 +86,3 @@ export default function NumPad({ value, onValueChange }: NumPadProps) {
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: { gap: 8 },
-  row: { flexDirection: 'row', justifyContent: 'center', gap: 8 },
-  key: {
-    width: 70,
-    height: 56,
-    backgroundColor: colors.surface,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  keyText: {
-    fontSize: fontSize.xl,
-    color: colors.text,
-  },
-});
