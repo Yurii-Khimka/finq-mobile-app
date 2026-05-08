@@ -3,67 +3,44 @@
 > Written by Claude Code (developer) after every completed task.
 > ALWAYS overwritten — never appended.
 > One result per session. Previous results are replaced.
-> Read by the planner to validate progress and decide the next step.
 
 ---
 
-## Task
-TASK-015 — SQLite local cache (read path)
+## TASK-017 + TASK-017-fix — Theme switcher (dark / light / monochrome)
 
-## Status
-COMPLETED
+### Status: DONE
 
-## What was done
+### Changes
 
-### 1. New dependency
-- `expo-sqlite` installed (with `--legacy-peer-deps` due to React version conflict)
+1. **`mobile/src/tokens/index.ts`** — Added `themes` object with three palettes (dark, light, monochrome), including envelope colours per theme. Exported `ThemeName`, `ThemeColors` types. Kept `colors = themes.dark` as fallback.
 
-### 2. Database module (`mobile/src/db/index.ts`)
-- Opens `finq.db` via `SQLite.openDatabaseSync()`
-- `initDB()` creates 5 tables: envelopes, transactions, categories, config, cache_meta
+2. **`mobile/src/db/queries.ts`** — Added generic `getConfigValue(key)` and `setConfigValue(key, value)` helpers for the config table.
 
-### 3. Data access layer (`mobile/src/db/queries.ts`)
-- `getBalances()` / `upsertBalances()` — read/write envelope balances
-- `getTransactions(filter?)` / `upsertTransactions()` / `deleteTransaction()` — with month filter support
-- `getCategories()` / `upsertCategories()` — full replace on sync
-- `getConfig()` / `upsertConfig()` — key-value for base_currency
-- `getCacheTimestamp()` / `setCacheTimestamp()` — track last sync time
-- `clearAllData()` — wipes all tables on logout
+3. **`mobile/src/context/ThemeContext.tsx`** — New file. `ThemeProvider` wraps app, loads saved theme from SQLite on mount, exposes `useTheme()` hook returning `{ theme, colors, setTheme }`.
 
-### 4. Sync module (`mobile/src/db/sync.ts`)
-- `syncBalances()`, `syncHistory()`, `syncCategories()`, `syncConfig()` — fetch from server, upsert into SQLite
-- `syncAll()` — parallel sync of all data types
+4. **`mobile/app/_layout.tsx`** — Wrapped in `<ThemeProvider>`. Extracted `RootContent` inner component to use `useTheme()`. StatusBar dynamically switches between `dark`/`light` style. Offline/pending bars use dynamic colours.
 
-### 5. Root layout (`mobile/app/_layout.tsx`)
-- Calls `initDB()` on app start
-- Calls `syncAll()` after auth check passes (non-blocking)
+5. **`mobile/app/(tabs)/_layout.tsx`** — Tab bar colours now come from `useTheme()`.
 
-### 6. Screen rewiring
+6. **`mobile/app/(auth)/_layout.tsx`** — Replaced static `colors` import with `useTheme()` so auth screens respect the active theme.
 
-**Home:** reads SQLite first, syncs server in background, error only if both fail
-**History:** reads SQLite first, syncs server; delete updates both server and SQLite
-**Expense:** reads categories from SQLite; syncs balances+history after submission
-**Income:** syncs balances after submission
-**Audit:** no caching (computed server-side); graceful "requires internet" message
-**Settings:** reads config from SQLite; updates SQLite on currency change; clears all data on logout
+7. **`mobile/app/(tabs)/settings.tsx`** — Added THEME section with segmented control (Dark / Light / Mono) above currency selector. All styles dynamic via `useMemo`.
 
-## Files changed
-- `mobile/src/db/index.ts` — NEW
-- `mobile/src/db/queries.ts` — NEW
-- `mobile/src/db/sync.ts` — NEW
-- `mobile/app/_layout.tsx` — EDIT
-- `mobile/app/(tabs)/index.tsx` — EDIT
-- `mobile/app/(tabs)/history.tsx` — EDIT
-- `mobile/app/(tabs)/expense.tsx` — EDIT
-- `mobile/app/(tabs)/income.tsx` — EDIT
-- `mobile/app/(tabs)/audit.tsx` — EDIT
-- `mobile/app/(tabs)/settings.tsx` — EDIT
-- `mobile/package.json` — added expo-sqlite
+8. **All screens rewired** — `index.tsx`, `expense.tsx`, `income.tsx`, `history.tsx`, `audit.tsx`, `login.tsx`, `register.tsx` — replaced static `colors` import with `useTheme()` hook, styles wrapped in `useMemo(() => StyleSheet.create(...), [colors])`.
 
-## Verification
+9. **Components rewired** — `SwipeableRow.tsx`, `NumPad.tsx` — same pattern.
+
+10. **Envelope colours** — Hardcoded envelope colours (`#EC4899`, etc.) replaced with theme-aware `colors.envelopeMandatory`, `colors.envelopeNonMandatory`, `colors.envelopeInvestments`, `colors.envelopeDreams`. Monochrome uses grey variants.
+
+### Verification
+
 ```
-cd mobile && npx tsc --noEmit  → 0 errors
+cd mobile && npx tsc --noEmit   # 0 errors
 ```
 
-## Changelog entry
-- **TASK-015:** SQLite local cache with offline-first reads, server background sync, and cache clearing on logout
+### Not changed
+
+- Backend — untouched
+- Screen logic, data fetching, offline behaviour — untouched
+- `fontSize` and `spacing` tokens — remain static
+- Layout structure — unchanged (only wrapped root in ThemeProvider)
