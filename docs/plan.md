@@ -8,259 +8,269 @@
 
 ## Active Task
 
-**TASK-015 — SQLite local cache (read path)**
-Goal: Install `expo-sqlite`, create local tables, populate them from the server on login/refresh, and rewire all screens to read from SQLite first. Server remains the write target — offline writes come in TASK-016.
+**TASK-016 — Offline writes + sync queue**
+Goal: Add a pending writes queue so expenses, income, and deletes work offline. Queue replays automatically when the app regains connectivity. Add a network status indicator so the user knows they're offline.
 
 ---
 
 ## Context
 
-The app is currently fully online-dependent. Every screen fetches data from the FastAPI backend on mount. If the server is unreachable, all screens show errors.
+TASK-015 added SQLite with offline reads — screens show cached data when the server is unreachable. But all writes (expense, income, delete) still fail without internet. This task closes that gap.
 
-This task adds a local SQLite cache so screens can display data instantly from the local DB, then refresh from the server in the background. Writes (expense, income, delete) still go directly to the server for now.
+Current write flow:
+1. User submits expense/income → API call → success → sync SQLite
+2. If offline → API call fails → error alert → nothing saved
 
-Architecture from `session.md`:
-```
-SQLite (local) ← always available, offline-first reads
-  ↕ background refresh when online
-FastAPI Backend ← source of truth for writes
-```
+Target write flow:
+1. User submits expense/income → save to pending queue + apply locally → show success
+2. Background: when online, replay queue → on success, mark synced → full sync
+3. If replay fails → retry later, show pending indicator
 
-Conflict resolution: last write wins (device authoritative). Single user, no multi-device sync needed for MVP.
+Architecture decision from `session.md`: **last write wins, device authoritative, single user**.
 
 ---
 
 ## What Must NOT Be Changed
 
 - Do not modify anything in `backend/`
-- Do not modify screen layouts or UI components
-- Do not change the auth flow (token storage stays in SecureStore)
-- Do not add offline write queuing (that's TASK-016)
-- Screens must look and behave exactly the same — only the data source changes
+- Do not change screen layouts or UI (except adding pending/offline indicators)
+- Do not modify the existing SQLite tables (envelopes, transactions, categories, config, cache_meta)
+- Do not change auth flow
 
 ---
 
 ## Read First
 
-- `mobile/package.json` — current dependencies
-- `mobile/src/api/client.ts` — all API methods (these stay unchanged)
-- `mobile/src/types/finance.ts` — all type definitions
-- `mobile/src/store/auth.ts` — token storage pattern
-- `mobile/app/(tabs)/index.tsx` — Home screen data fetching (reference pattern)
-- `mobile/app/(tabs)/history.tsx` — History screen data fetching
-- `mobile/app/(tabs)/audit.tsx` — Audit screen data fetching
-- `mobile/app/(tabs)/settings.tsx` — Config fetching
-- `mobile/app/(tabs)/expense.tsx` — Categories fetching
-- Expo SQLite docs: https://docs.expo.dev/versions/latest/sdk/sqlite/
+- `mobile/src/db/index.ts` — current DB init, table schemas
+- `mobile/src/db/queries.ts` — all query functions
+- `mobile/src/db/sync.ts` — server→SQLite sync functions
+- `mobile/src/api/client.ts` — `finance.addExpense()`, `finance.addIncome()`, `finance.removeTransaction()`
+- `mobile/src/types/finance.ts` — `ExpenseRequest`, `IncomeRequest`, `ExpenseResponse`
+- `mobile/app/(tabs)/expense.tsx` — current expense submission (lines 125-161)
+- `mobile/app/(tabs)/income.tsx` — current income submission (lines 45-68)
+- `mobile/app/(tabs)/history.tsx` — current delete flow (lines 123-137)
+- `mobile/app/_layout.tsx` — app start sync
 
 ---
 
 ## Step-by-step
 
-### 1. Install `expo-sqlite`
+### 1. Add `pending_writes` table (`mobile/src/db/index.ts`)
 
-```bash
-cd mobile && npx expo install expo-sqlite
-```
-
-No other dependencies needed. `expo-sqlite` (v15+) uses the modern synchronous API and works with Expo 54.
-
-### 2. Create database module (`mobile/src/db/index.ts`)
-
-Single file that exports the database instance and initialisation function.
-
-```typescript
-import * as SQLite from 'expo-sqlite';
-
-const db = SQLite.openDatabaseSync('finq.db');
-
-export function initDB(): void {
-  // Create all tables if they don't exist
-  // Use db.execSync() for DDL
-}
-
-export default db;
-```
-
-### 3. Define SQLite tables
-
-Tables mirror the backend schema but simplified for caching:
+Add to `initDB()`:
 
 ```sql
-CREATE TABLE IF NOT EXISTS envelopes (
-  name TEXT PRIMARY KEY,          -- "mandatory", "non_mandatory", "investments", "dreams"
-  percentage REAL NOT NULL,
-  balance REAL NOT NULL
-);
-
-CREATE TABLE IF NOT EXISTS transactions (
-  id TEXT PRIMARY KEY,            -- 8-char UUID from server
-  date TEXT NOT NULL,             -- ISO datetime string
-  type TEXT NOT NULL,             -- "income", "expense", "sync"
-  category TEXT NOT NULL,
-  amount_uah REAL NOT NULL,
-  original_amount REAL,
-  original_currency TEXT,
-  envelope TEXT NOT NULL,
-  details TEXT NOT NULL DEFAULT 'OK'
-);
-
-CREATE TABLE IF NOT EXISTS categories (
-  name TEXT PRIMARY KEY,
-  envelope_name TEXT NOT NULL
-);
-
-CREATE TABLE IF NOT EXISTS config (
-  key TEXT PRIMARY KEY,
-  value TEXT NOT NULL
-);
-
-CREATE TABLE IF NOT EXISTS cache_meta (
-  key TEXT PRIMARY KEY,           -- e.g. "balances_updated", "history_updated"
-  value TEXT NOT NULL             -- ISO timestamp of last server sync
+CREATE TABLE IF NOT EXISTS pending_writes (
+  id TEXT PRIMARY KEY,
+  operation TEXT NOT NULL,
+  payload TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  attempts INTEGER NOT NULL DEFAULT 0,
+  last_error TEXT,
+  status TEXT NOT NULL DEFAULT 'pending'
 );
 ```
 
-Notes:
-- No `user_id` column — single user, single local DB
-- `cache_meta` tracks when each data type was last refreshed from server
-- `config` is key-value for `base_currency` and future settings
+- `id` — UUID generated client-side (use `crypto.randomUUID()` or simple random string)
+- `operation` — one of: `'addExpense'`, `'addIncome'`, `'removeTransaction'`
+- `payload` — JSON string of the request body (e.g. `{ category, amount, currency }` for expense)
+- `status` — `'pending'` | `'syncing'` | `'failed'`
+- Max 5 retry attempts before marking `'failed'`
 
-### 4. Create data access layer (`mobile/src/db/queries.ts`)
+### 2. Pending writes query functions (`mobile/src/db/queries.ts`)
 
-Export functions for each data operation. All synchronous (expo-sqlite v15 sync API):
+Add these functions:
 
-**Envelopes / Balances:**
-- `getBalances(): BalancesResponse` — SELECT all envelopes, return as object
-- `upsertBalances(balances: BalancesResponse): void` — INSERT OR REPLACE each envelope
+- `insertPendingWrite(op: string, payload: object): string` — insert and return the generated id
+- `getPendingWrites(): PendingWrite[]` — SELECT WHERE status = 'pending' ORDER BY created_at ASC
+- `updatePendingStatus(id: string, status: string, error?: string): void` — update status + increment attempts + set last_error
+- `deletePendingWrite(id: string): void` — remove after successful sync
+- `getPendingCount(): number` — SELECT COUNT for badge/indicator
+- `clearFailedWrites(): void` — DELETE WHERE status = 'failed' (manual retry reset)
 
-**Transactions:**
-- `getTransactions(filter?: string): TransactionResponse[]` — SELECT with optional month filter, ORDER BY date DESC
-- `upsertTransactions(transactions: TransactionResponse[]): void` — INSERT OR REPLACE batch
-- `deleteTransaction(id: string): void` — DELETE by id
-- `getTransactionMonths(): string[]` — SELECT DISTINCT months for filter pills
-
-**Categories:**
-- `getCategories(): CategoryResponse[]` — SELECT all
-- `upsertCategories(categories: CategoryResponse[]): void` — DELETE all + INSERT batch (full replace)
-
-**Config:**
-- `getConfig(): ConfigResponse` — SELECT base_currency, default "UAH"
-- `upsertConfig(config: ConfigResponse): void` — INSERT OR REPLACE
-
-**Cache meta:**
-- `getCacheTimestamp(key: string): string | null` — when was this data last synced
-- `setCacheTimestamp(key: string): void` — set to current ISO time
-
-### 5. Create sync-from-server module (`mobile/src/db/sync.ts`)
-
-Functions that fetch from server and populate SQLite. Called on app start and pull-to-refresh.
-
+Add type to `mobile/src/types/finance.ts`:
 ```typescript
-export async function syncBalances(): Promise<BalancesResponse> {
-  const balances = await finance.getBalances();
-  upsertBalances(balances);
-  setCacheTimestamp('balances');
-  return balances;
-}
-
-export async function syncHistory(filter?: string): Promise<TransactionResponse[]> {
-  const transactions = await finance.getHistory(filter);
-  upsertTransactions(transactions);
-  setCacheTimestamp('history');
-  return transactions;
-}
-
-export async function syncCategories(): Promise<CategoryResponse[]> {
-  const categories = await finance.getCategories();
-  upsertCategories(categories);
-  setCacheTimestamp('categories');
-  return categories;
-}
-
-export async function syncConfig(): Promise<ConfigResponse> {
-  const config = await finance.getConfig();
-  upsertConfig(config);
-  setCacheTimestamp('config');
-  return config;
-}
-
-// Full sync — called on app launch after auth check
-export async function syncAll(): Promise<void> {
-  await Promise.all([
-    syncBalances(),
-    syncHistory('all'),
-    syncCategories(),
-    syncConfig(),
-  ]);
+export interface PendingWrite {
+  id: string;
+  operation: 'addExpense' | 'addIncome' | 'removeTransaction';
+  payload: string; // JSON
+  created_at: string;
+  attempts: number;
+  last_error: string | null;
+  status: 'pending' | 'syncing' | 'failed';
 }
 ```
 
-### 6. Initialise DB on app start (`mobile/app/_layout.tsx`)
+### 3. Local optimistic write functions (`mobile/src/db/queries.ts`)
 
-After auth check passes:
-1. Call `initDB()` to create tables
-2. Try `syncAll()` in the background (non-blocking)
-3. If sync fails (offline), screens will use whatever is in SQLite from last session
+When a write is queued offline, the local SQLite should reflect it immediately:
+
+**For expense:**
+- `applyLocalExpense(category: string, amountUah: number, envelope: string): void`
+  - Deduct `amountUah` from the envelope balance in `envelopes` table
+  - Insert a temporary transaction into `transactions` with a local id prefix (e.g. `"local_"` + random) so it shows in history
+  - The temporary transaction gets replaced on full sync after the queue replays
+
+**For income:**
+- `applyLocalIncome(amountUah: number): void`
+  - Distribute across envelopes by percentage (50/30/10/10)
+  - Insert a temporary income transaction
+
+**For delete:**
+- Already handled — `deleteTransaction(id)` removes from SQLite, pending write queues the server call
+
+### 4. Queue replay engine (`mobile/src/db/sync.ts`)
+
+Add a `replayPendingWrites()` function:
 
 ```typescript
-// In root layout, after confirming auth:
-initDB();
-syncAll().catch(() => { /* offline, use cached data */ });
+export async function replayPendingWrites(): Promise<void> {
+  const pending = getPendingWrites();
+  
+  for (const write of pending) {
+    if (write.attempts >= 5) {
+      updatePendingStatus(write.id, 'failed', 'Max retries exceeded');
+      continue;
+    }
+    
+    updatePendingStatus(write.id, 'syncing');
+    
+    try {
+      const payload = JSON.parse(write.payload);
+      
+      switch (write.operation) {
+        case 'addExpense':
+          await finance.addExpense(payload);
+          break;
+        case 'addIncome':
+          await finance.addIncome(payload);
+          break;
+        case 'removeTransaction':
+          await finance.removeTransaction(payload.id);
+          break;
+      }
+      
+      deletePendingWrite(write.id);
+    } catch (error) {
+      updatePendingStatus(write.id, 'pending', error.message);
+      break; // Stop on first failure — preserve order
+    }
+  }
+  
+  // After replaying, do a full sync to reconcile
+  if (pending.length > 0) {
+    await syncAll();
+  }
+}
 ```
 
-### 7. Rewire screens to read from SQLite first
+Key rules:
+- Process in FIFO order (oldest first)
+- Stop on first failure — don't skip ahead (order matters for balance calculations)
+- After all pending writes succeed, run `syncAll()` to get server-authoritative state
+- The full sync replaces any local/temporary transactions with real server data
 
-Each screen changes from "fetch server → show data" to "read SQLite → show data → fetch server → update SQLite → update UI".
+### 5. Network status hook (`mobile/src/hooks/useNetworkStatus.ts`)
 
-#### Home screen (`app/(tabs)/index.tsx`)
-- On mount: read `getBalances()` and `getTransactions()` from SQLite → show immediately
-- Then: `syncBalances()` and `syncHistory('all', 10)` in background → update state on success
-- Pull-to-refresh: trigger sync functions
-- If SQLite is empty (first launch) and server fails → show empty state
+NEW file. Simple hook using React Native's `NetInfo` or a lightweight polling approach:
 
-#### History screen (`app/(tabs)/history.tsx`)
-- On mount: read `getTransactions(filter)` from SQLite → show immediately
-- Then: `syncHistory(filter)` in background → update state
-- On filter change: read SQLite first, then sync
-- Delete still calls server directly (`finance.removeTransaction(id)`), then also `deleteTransaction(id)` from SQLite
-
-#### Expense screen (`app/(tabs)/expense.tsx`)
-- On mount: read `getCategories()` from SQLite → show immediately
-- Then: `syncCategories()` in background → update if changed
-- Expense submission still goes to server directly (offline writes = TASK-016)
-- After successful expense: `syncBalances()` + `syncHistory()` to update cache
-
-#### Income screen (`app/(tabs)/income.tsx`)
-- No local reads needed (income screen just has a numpad)
-- After successful income: `syncBalances()` to update cache
-
-#### Audit screen (`app/(tabs)/audit.tsx`)
-- Audit/sustainability/anomalies/advisor are computed server-side → **do not cache in SQLite**
-- Keep fetching from server directly
-- If server fails: show "Audit data requires internet connection" message instead of error
-- Rationale: audit data is derived from transactions + time calculations. Caching stale audit data is misleading.
-
-#### Settings screen (`app/(tabs)/settings.tsx`)
-- On mount: read `getConfig()` from SQLite → show immediately
-- Then: `syncConfig()` in background
-- On currency change: still calls server, then updates SQLite
-
-### 8. Clear DB on logout
-
-In `settings.tsx` logout handler, after `clearToken()`:
-- Call a `clearAllData()` function that drops all table contents
-- This ensures the next user gets a clean slate
-
-Add to `mobile/src/db/queries.ts`:
 ```typescript
-export function clearAllData(): void {
-  db.execSync('DELETE FROM envelopes');
-  db.execSync('DELETE FROM transactions');
-  db.execSync('DELETE FROM categories');
-  db.execSync('DELETE FROM config');
-  db.execSync('DELETE FROM cache_meta');
+// Option A: Use fetch-based ping (no extra dependency)
+export function useNetworkStatus(): { isOnline: boolean } {
+  // Poll the API base URL every 30 seconds with a lightweight HEAD request
+  // Also check on app focus (AppState change)
+  // Return { isOnline }
 }
+```
+
+Since we want to avoid extra dependencies, use a simple approach:
+- On app start: try a HEAD request to the API base URL
+- On `AppState` change to `'active'`: re-check
+- Periodically (every 30s) when the app is in foreground
+- Expose `isOnline` boolean
+
+When transitioning from offline → online:
+- Call `replayPendingWrites()` automatically
+
+### 6. Rewire Expense screen (`mobile/app/(tabs)/expense.tsx`)
+
+Change `handleSubmit()`:
+
+```
+Try server call (finance.addExpense)
+  ↓ SUCCESS → sync SQLite, navigate home (same as now)
+  ↓ NETWORK ERROR →
+    - Queue: insertPendingWrite('addExpense', payload)
+    - Optimistic: applyLocalExpense(category, amountUah, envelope)
+    - Navigate home with brief "Saved offline" toast/message
+  ↓ OTHER ERROR (400, 404) → show error (don't queue — it will fail again)
+```
+
+Only queue on network errors (fetch fails, timeout, no internet). Don't queue validation errors (400), auth errors (401), or server errors (500) — those need different handling.
+
+### 7. Rewire Income screen (`mobile/app/(tabs)/income.tsx`)
+
+Same pattern as expense:
+
+```
+Try server call (finance.addIncome)
+  ↓ SUCCESS → sync SQLite, navigate home
+  ↓ NETWORK ERROR →
+    - Queue: insertPendingWrite('addIncome', payload)
+    - Optimistic: applyLocalIncome(amountUah)
+    - Navigate home with "Saved offline"
+  ↓ OTHER ERROR → show error
+```
+
+### 8. Rewire History delete (`mobile/app/(tabs)/history.tsx`)
+
+```
+Try server call (finance.removeTransaction)
+  ↓ SUCCESS → delete from SQLite, update UI (same as now)
+  ↓ NETWORK ERROR →
+    - Queue: insertPendingWrite('removeTransaction', { id })
+    - Delete from local SQLite
+    - Update UI (transaction disappears)
+    - Will sync to server when back online
+  ↓ OTHER ERROR → show error, don't delete locally
+```
+
+### 9. Offline indicator in root layout (`mobile/app/_layout.tsx`)
+
+Add a small bar at the top of the screen when offline:
+- Yellow background (`colors.warning`), white text
+- Text: "You're offline — changes will sync when connected"
+- Shows when `isOnline === false`
+- Disappears when back online (after successful replay)
+
+Also show pending count if > 0:
+- Text: "X changes pending sync"
+- This appears even when online, if queue hasn't replayed yet
+
+### 10. Pending indicator on Home screen (`mobile/app/(tabs)/index.tsx`)
+
+If `getPendingCount() > 0`, show a small badge or note:
+- Below the balance card: "X pending changes" in `colors.warning`
+- This reassures the user that their offline writes exist and will sync
+
+### 11. Trigger replay on app start and reconnect
+
+In `_layout.tsx`, after `syncAll()`:
+```typescript
+// After syncAll succeeds (we're online):
+await replayPendingWrites();
+```
+
+In the network status hook, when transitioning offline → online:
+```typescript
+replayPendingWrites().then(() => syncAll());
+```
+
+### 12. Clear pending writes on logout
+
+In `clearAllData()` (`queries.ts`), add:
+```sql
+DELETE FROM pending_writes;
 ```
 
 ---
@@ -269,62 +279,67 @@ export function clearAllData(): void {
 
 | File | Action |
 |---|---|
-| `mobile/src/db/index.ts` | NEW — DB instance + initDB() |
-| `mobile/src/db/queries.ts` | NEW — all local read/write functions |
-| `mobile/src/db/sync.ts` | NEW — server→SQLite sync functions |
-| `mobile/app/_layout.tsx` | EDIT — add initDB() + syncAll() after auth |
-| `mobile/app/(tabs)/index.tsx` | EDIT — read SQLite first, then sync |
-| `mobile/app/(tabs)/history.tsx` | EDIT — read SQLite first, then sync; update SQLite on delete |
-| `mobile/app/(tabs)/expense.tsx` | EDIT — read categories from SQLite; sync after submission |
-| `mobile/app/(tabs)/income.tsx` | EDIT — sync balances after submission |
-| `mobile/app/(tabs)/audit.tsx` | EDIT — graceful offline message instead of error |
-| `mobile/app/(tabs)/settings.tsx` | EDIT — read config from SQLite; clear DB on logout |
+| `mobile/src/db/index.ts` | EDIT — add `pending_writes` table to initDB |
+| `mobile/src/db/queries.ts` | EDIT — add pending write functions + optimistic local writes |
+| `mobile/src/db/sync.ts` | EDIT — add `replayPendingWrites()` |
+| `mobile/src/types/finance.ts` | EDIT — add `PendingWrite` type |
+| `mobile/src/hooks/useNetworkStatus.ts` | NEW — network status hook with auto-replay |
+| `mobile/app/(tabs)/expense.tsx` | EDIT — queue on network error, optimistic local write |
+| `mobile/app/(tabs)/income.tsx` | EDIT — queue on network error, optimistic local write |
+| `mobile/app/(tabs)/history.tsx` | EDIT — queue delete on network error |
+| `mobile/app/(tabs)/index.tsx` | EDIT — show pending count indicator |
+| `mobile/app/_layout.tsx` | EDIT — offline bar, replay on start/reconnect |
 
 ---
 
 ## Edge cases
 
-- First launch, no cache, no internet → all screens show empty state with "Connect to internet to get started" message
-- SQLite empty but server reachable → sync populates everything, screens update
-- Server unreachable after first sync → screens show cached data, no errors
-- Logout → clears all SQLite data
-- Delete transaction offline → server call fails → show error, don't delete from SQLite (offline delete = TASK-016)
-- Stale cache → no TTL enforcement for MVP. Pull-to-refresh always syncs. Cache is good enough.
-- DB migration in future → use `cache_meta` with a `db_version` key, or expo-sqlite's `userVersion` pragma
+- Queue has writes + user goes online → replay in order, stop on first failure
+- Expense queued offline, then deleted offline → both in queue, order preserved, server handles correctly
+- 5 failed attempts → mark as `'failed'`, don't retry. User can clear via settings (future)
+- Queue replay during another replay → guard with a `isReplaying` flag to prevent concurrent execution
+- App killed while replaying → pending writes persist in SQLite, resume on next launch
+- Auth expired while offline → replay will get 401 → redirect to login, queue preserved for after re-login
+- Currency conversion offline → for expenses in USD/EUR, we can't get live rate. Two options:
+  - Option A: block non-UAH expenses offline (simplest, safest)
+  - Option B: use last cached rate from `cache_meta`
+  - **Go with Option A** — show "Currency conversion requires internet. Use UAH or connect to submit." This avoids stale rate issues.
 
 ---
 
-## What this does NOT include (deferred to TASK-016)
+## What this does NOT include (post-MVP)
 
-- Offline expense/income submission (queued writes)
-- Sync queue with retry logic
-- Conflict resolution
-- Network status detection (online/offline indicator)
-- Background sync on reconnect
+- Retry UI for failed writes (manual retry button in settings)
+- Conflict resolution beyond last-write-wins
+- Multi-device sync
+- Background fetch (iOS background app refresh)
 
 ---
 
 ## Verification
 
 ```bash
-cd mobile && npx expo install expo-sqlite   # installs without errors
-cd mobile && npx tsc --noEmit               # 0 errors
+cd mobile && npx tsc --noEmit   # 0 errors
 ```
 
 Manual test:
-1. Launch app → data loads from server, cached in SQLite
-2. Kill server → relaunch app → data still shows from cache
-3. Pull to refresh while offline → shows error briefly, cached data remains
-4. Go to History, change filter → local data shown instantly
-5. Delete a transaction (while online) → removed from server and local DB
-6. Logout → log back in → data re-syncs fresh
+1. Turn off server → add expense in UAH → "Saved offline" message, navigates home
+2. Check history → offline expense appears with local data
+3. Turn on server → app reconnects → pending writes replay → full sync
+4. Check history → transaction now has real server id
+5. Turn off server → add income → "Saved offline"
+6. Turn on server → income syncs, balances update
+7. Turn off server → delete a transaction → disappears locally
+8. Turn on server → delete syncs to server
+9. Try non-UAH expense offline → blocked with "requires internet" message
+10. Check offline bar appears when server unreachable
 
 ---
 
 ## Git
 
-Branch: `feat/task-015-sqlite-cache`
-Commit message: `feat(mobile): SQLite local cache with offline-first reads (#015)`
+Branch: `feat/task-016-offline-writes`
+Commit message: `feat(mobile): offline write queue with auto-replay and network status (#016)`
 
 ---
 

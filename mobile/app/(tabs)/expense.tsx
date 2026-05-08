@@ -16,7 +16,7 @@ import { clearToken } from '../../src/store/auth';
 import type { CategoryResponse, ImpactResponse } from '../../src/types/finance';
 import { formatCurrency, envelopeLabel } from '../../src/utils/format';
 import NumPad from '../../src/components/NumPad';
-import { getCategories as getLocalCategories } from '../../src/db/queries';
+import { getCategories as getLocalCategories, insertPendingWrite, applyLocalExpense } from '../../src/db/queries';
 import { syncCategories, syncBalances, syncHistory } from '../../src/db/sync';
 
 const CURRENCIES = ['UAH', 'USD', 'EUR'] as const;
@@ -145,9 +145,19 @@ export default function ExpenseScreen() {
       }
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : String(e);
+      const isNetworkError = e instanceof TypeError || msg.includes('Network') || msg.includes('fetch');
+
       if (msg.includes('401')) {
         await clearToken();
         router.replace('/(auth)/login');
+      } else if (isNetworkError && currency === 'UAH') {
+        // Queue for offline sync (UAH only — FX needs server)
+        const cat = categories.find((c) => c.name === selectedCategory);
+        insertPendingWrite('addExpense', { category: selectedCategory, amount: numericAmount, currency });
+        applyLocalExpense(selectedCategory, numericAmount, cat?.envelope_name ?? 'mandatory');
+        router.navigate('/(tabs)');
+      } else if (isNetworkError && currency !== 'UAH') {
+        setError('Currency conversion requires internet. Use UAH or connect to submit.');
       } else if (msg.includes('502')) {
         setError('Exchange rate unavailable');
       } else if (msg.includes('404')) {

@@ -13,6 +13,7 @@ import { finance } from '../../src/api/client';
 import { clearToken } from '../../src/store/auth';
 import NumPad from '../../src/components/NumPad';
 import { syncBalances } from '../../src/db/sync';
+import { insertPendingWrite, applyLocalIncome } from '../../src/db/queries';
 
 const CURRENCIES = ['UAH', 'USD', 'EUR'] as const;
 type Currency = (typeof CURRENCIES)[number];
@@ -53,9 +54,17 @@ export default function IncomeScreen() {
       router.navigate('/(tabs)');
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : String(e);
+      const isNetworkError = e instanceof TypeError || msg.includes('Network') || msg.includes('fetch');
+
       if (msg.includes('401')) {
         await clearToken();
         router.replace('/(auth)/login');
+      } else if (isNetworkError && currency === 'UAH') {
+        insertPendingWrite('addIncome', { amount: numericAmount, currency });
+        applyLocalIncome(numericAmount);
+        router.navigate('/(tabs)');
+      } else if (isNetworkError && currency !== 'UAH') {
+        setError('Currency conversion requires internet. Use UAH or connect to submit.');
       } else if (msg.includes('502')) {
         setError('Exchange rate unavailable');
       } else {

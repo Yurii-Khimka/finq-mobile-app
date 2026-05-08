@@ -17,7 +17,7 @@ import { clearToken } from '../../src/store/auth';
 import type { TransactionResponse } from '../../src/types/finance';
 import { formatCurrency, formatDate, envelopeLabel } from '../../src/utils/format';
 import SwipeableRow from '../../src/components/SwipeableRow';
-import { getTransactions as getLocalTransactions, deleteTransaction as deleteLocalTransaction } from '../../src/db/queries';
+import { getTransactions as getLocalTransactions, deleteTransaction as deleteLocalTransaction, insertPendingWrite } from '../../src/db/queries';
 import { syncHistory } from '../../src/db/sync';
 
 const ENVELOPE_FILTERS = ['all', 'mandatory', 'non_mandatory', 'investments', 'dreams'] as const;
@@ -127,9 +127,16 @@ export default function HistoryScreen() {
       setTransactions((prev) => prev.filter((t) => t.id !== id));
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : String(e);
+      const isNetworkError = e instanceof TypeError || msg.includes('Network') || msg.includes('fetch');
+
       if (msg.includes('401')) {
         await clearToken();
         router.replace('/(auth)/login');
+      } else if (isNetworkError) {
+        // Queue for offline sync
+        insertPendingWrite('removeTransaction', { id });
+        deleteLocalTransaction(id);
+        setTransactions((prev) => prev.filter((t) => t.id !== id));
       } else {
         setError('Failed to delete transaction');
       }
