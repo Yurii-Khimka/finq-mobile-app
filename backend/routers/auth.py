@@ -1,6 +1,7 @@
+import logging
 from decimal import Decimal
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
 
 from backend.auth import (
@@ -14,10 +15,13 @@ from backend.auth import (
     verify_password,
 )
 from backend.database import get_db
+from backend.limiter import limiter
 from backend.models.config import UserConfig
 from backend.models.envelope import Envelope
 from backend.models.user import User
 from backend.schemas.auth import LoginRequest, RefreshRequest, RegisterRequest, TokenResponse
+
+logger = logging.getLogger("finq.auth")
 
 router = APIRouter()
 
@@ -30,7 +34,9 @@ DEFAULT_ENVELOPES = [
 
 
 @router.post("/register", response_model=TokenResponse)
-def register(body: RegisterRequest, db: Session = Depends(get_db)):
+@limiter.limit("3/minute")
+def register(request: Request, body: RegisterRequest, db: Session = Depends(get_db)):
+    logger.info(f"Registration attempt: {body.email}")
     existing = db.query(User).filter(User.email == body.email).first()
     if existing:
         raise HTTPException(
@@ -51,13 +57,17 @@ def register(body: RegisterRequest, db: Session = Depends(get_db)):
 
     access = create_access_token(user.id)
     refresh = create_refresh_token(user.id, db)
+    logger.info(f"Registration success: {body.email}")
     return TokenResponse(access_token=access, refresh_token=refresh)
 
 
 @router.post("/login", response_model=TokenResponse)
-def login(body: LoginRequest, db: Session = Depends(get_db)):
+@limiter.limit("5/minute")
+def login(request: Request, body: LoginRequest, db: Session = Depends(get_db)):
+    logger.info(f"Login attempt: {body.email}")
     user = db.query(User).filter(User.email == body.email).first()
     if not user or not verify_password(body.password, user.password_hash):
+        logger.warning(f"Login failed: {body.email}")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid email or password",
@@ -65,11 +75,13 @@ def login(body: LoginRequest, db: Session = Depends(get_db)):
 
     access = create_access_token(user.id)
     refresh = create_refresh_token(user.id, db)
+    logger.info(f"Login success: {body.email}")
     return TokenResponse(access_token=access, refresh_token=refresh)
 
 
 @router.post("/refresh", response_model=TokenResponse)
-def refresh(body: RefreshRequest, db: Session = Depends(get_db)):
+@limiter.limit("10/minute")
+def refresh(request: Request, body: RefreshRequest, db: Session = Depends(get_db)):
     user = validate_refresh_token(body.refresh_token, db)
     if not user:
         raise HTTPException(
@@ -87,6 +99,7 @@ def logout(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    logger.info(f"Logout: user_id={current_user.id}")
     revoke_all_user_tokens(current_user.id, db)
     return {"status": "ok"}
 

@@ -24,11 +24,27 @@ import type {
 
 const BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:8000';
 
+if (!__DEV__ && !BASE_URL.startsWith('https://')) {
+  throw new Error('API URL must use HTTPS in production');
+}
+
+function fetchWithTimeout(
+  url: string,
+  options: RequestInit,
+  timeoutMs = 15000,
+): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  return fetch(url, { ...options, signal: controller.signal }).finally(() =>
+    clearTimeout(timer),
+  );
+}
+
 async function tryRefreshToken(): Promise<boolean> {
   const refresh = await getRefreshToken();
   if (!refresh) return false;
   try {
-    const res = await fetch(`${BASE_URL}/auth/refresh`, {
+    const res = await fetchWithTimeout(`${BASE_URL}/auth/refresh`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ refresh_token: refresh }),
@@ -52,7 +68,10 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
     headers['Authorization'] = `Bearer ${token}`;
   }
 
-  let res = await fetch(`${BASE_URL}${path}`, { ...options, headers });
+  let res = await fetchWithTimeout(`${BASE_URL}${path}`, {
+    ...options,
+    headers,
+  });
 
   if (res.status === 401 && path !== '/auth/refresh' && path !== '/auth/login') {
     const refreshed = await tryRefreshToken();
@@ -61,7 +80,10 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
       if (newToken) {
         headers['Authorization'] = `Bearer ${newToken}`;
       }
-      res = await fetch(`${BASE_URL}${path}`, { ...options, headers });
+      res = await fetchWithTimeout(`${BASE_URL}${path}`, {
+        ...options,
+        headers,
+      });
     }
   }
 

@@ -1,4 +1,5 @@
 import calendar
+import certifi
 import json
 import ssl
 import urllib.request
@@ -6,8 +7,10 @@ import uuid
 from datetime import datetime, timedelta
 from decimal import Decimal
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from sqlalchemy.orm import Session
+
+from backend.limiter import limiter
 
 from backend.auth import get_current_user
 from backend.database import get_db
@@ -47,9 +50,9 @@ ENVELOPE_ORDER = ["mandatory", "non_mandatory", "investments", "dreams"]
 def _get_rate(currency: str) -> float | None:
     """Fetch live NBU exchange rate — matches core.py get_rate()."""
     try:
-        context = ssl._create_unverified_context()
+        context = ssl.create_default_context(cafile=certifi.where())
         url = f"https://bank.gov.ua/NBUStatService/v1/statdirectory/exchange?valcode={currency.upper()}&json"
-        with urllib.request.urlopen(url, context=context) as response:
+        with urllib.request.urlopen(url, context=context, timeout=10) as response:
             data = json.loads(response.read().decode())
             return data[0]["rate"]
     except Exception:
@@ -100,7 +103,8 @@ def _log_transaction(
 # ---------- 1. GET /finance/rate ----------
 
 @router.get("/rate", response_model=RateResponse)
-def get_rate(currency: str = Query(...)):
+@limiter.limit("60/minute")
+def get_rate(request: Request, currency: str = Query(...)):
     rate = _get_rate(currency)
     if rate is None:
         raise HTTPException(
@@ -113,7 +117,9 @@ def get_rate(currency: str = Query(...)):
 # ---------- 2. GET /finance/balances ----------
 
 @router.get("/balances", response_model=BalancesResponse)
+@limiter.limit("60/minute")
 def get_balances(
+    request: Request,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
@@ -124,7 +130,9 @@ def get_balances(
 # ---------- 3. POST /finance/income ----------
 
 @router.post("/income", response_model=BalancesResponse)
+@limiter.limit("60/minute")
 def add_income(
+    request: Request,
     body: IncomeRequest,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
@@ -168,7 +176,9 @@ def add_income(
 # ---------- 4. POST /finance/expense ----------
 
 @router.post("/expense", response_model=ExpenseResponse)
+@limiter.limit("60/minute")
 def add_expense(
+    request: Request,
     body: ExpenseRequest,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
@@ -248,7 +258,9 @@ def add_expense(
 # ---------- 5. POST /finance/flush ----------
 
 @router.post("/flush", response_model=FlushResponse)
+@limiter.limit("60/minute")
 def flush_leftovers(
+    request: Request,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
@@ -278,7 +290,9 @@ def flush_leftovers(
 # ---------- 6. POST /finance/sync ----------
 
 @router.post("/sync", response_model=BalancesResponse)
+@limiter.limit("60/minute")
 def sync_balance(
+    request: Request,
     body: SyncRequest,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
@@ -326,7 +340,9 @@ def _inf_to_none(val: float) -> float | None:
 # ---------- 7. GET /finance/history ----------
 
 @router.get("/history", response_model=list[TransactionResponse])
+@limiter.limit("60/minute")
 def get_history(
+    request: Request,
     filter: str = Query("all"),
     limit: int | None = Query(None),
     current_user: User = Depends(get_current_user),
@@ -371,7 +387,9 @@ def get_history(
 # ---------- 8. GET /finance/stats ----------
 
 @router.get("/stats", response_model=StatsResponse)
+@limiter.limit("60/minute")
 def get_stats(
+    request: Request,
     filter: str = Query("current"),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
@@ -440,7 +458,9 @@ def get_stats(
 # ---------- 9. GET /finance/audit ----------
 
 @router.get("/audit", response_model=AuditResponse)
+@limiter.limit("60/minute")
 def get_audit(
+    request: Request,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
@@ -534,7 +554,9 @@ def get_audit(
 # ---------- 10. GET /finance/sustainability ----------
 
 @router.get("/sustainability", response_model=SustainabilityResponse)
+@limiter.limit("60/minute")
 def get_sustainability(
+    request: Request,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
@@ -631,7 +653,9 @@ def get_sustainability(
 # ---------- 11. GET /finance/anomalies ----------
 
 @router.get("/anomalies", response_model=list[AnomalyItem])
+@limiter.limit("60/minute")
 def get_anomalies(
+    request: Request,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
@@ -687,12 +711,14 @@ def get_anomalies(
 # ---------- 12. GET /finance/advisor ----------
 
 @router.get("/advisor", response_model=AdvisorResponse)
+@limiter.limit("60/minute")
 def get_advisor(
+    request: Request,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    audit = get_audit(current_user=current_user, db=db)
-    anomalies = get_anomalies(current_user=current_user, db=db)
+    audit = get_audit(request=request, current_user=current_user, db=db)
+    anomalies = get_anomalies(request=request, current_user=current_user, db=db)
 
     sentences = []
 
@@ -734,7 +760,9 @@ def get_advisor(
 # ---------- 13. POST /finance/impact ----------
 
 @router.post("/impact", response_model=ImpactResponse)
+@limiter.limit("60/minute")
 def calculate_impact(
+    request: Request,
     body: ImpactRequest,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
@@ -847,7 +875,9 @@ def calculate_impact(
 # ---------- 14. DELETE /finance/transactions/{transaction_id} ----------
 
 @router.delete("/transactions/{transaction_id}", response_model=BalancesResponse)
+@limiter.limit("60/minute")
 def remove_transaction(
+    request: Request,
     transaction_id: str,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
@@ -905,7 +935,9 @@ ENVELOPE_PRIORITY = {"mandatory": 1, "non_mandatory": 2, "investments": 3, "drea
 
 
 @router.get("/categories", response_model=list[CategoryResponse])
+@limiter.limit("60/minute")
 def get_categories(
+    request: Request,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
@@ -920,7 +952,9 @@ def get_categories(
 # ---------- 16. POST /finance/categories ----------
 
 @router.post("/categories", response_model=CategoryResponse, status_code=status.HTTP_201_CREATED)
+@limiter.limit("60/minute")
 def create_category(
+    request: Request,
     body: CategoryRequest,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
@@ -951,7 +985,9 @@ def create_category(
 # ---------- 17. DELETE /finance/categories/{category_name} ----------
 
 @router.delete("/categories/{category_name}", status_code=status.HTTP_204_NO_CONTENT)
+@limiter.limit("60/minute")
 def delete_category(
+    request: Request,
     category_name: str,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
@@ -973,7 +1009,9 @@ def delete_category(
 # ---------- 18. GET /finance/config ----------
 
 @router.get("/config", response_model=ConfigResponse)
+@limiter.limit("60/minute")
 def get_config(
+    request: Request,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
@@ -989,7 +1027,9 @@ VALID_CURRENCIES = {"UAH", "USD", "EUR"}
 
 
 @router.put("/config", response_model=ConfigResponse)
+@limiter.limit("60/minute")
 def update_config(
+    request: Request,
     body: ConfigRequest,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
