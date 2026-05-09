@@ -1,4 +1,5 @@
-import { useRef, type ReactNode } from 'react';
+import { useMemo, useRef, type ReactNode } from 'react';
+import * as Haptics from 'expo-haptics';
 import {
   View,
   Text,
@@ -8,7 +9,8 @@ import {
   StyleSheet,
   Alert,
 } from 'react-native';
-import { colors, fontSize } from '../tokens';
+import { fontSize } from '../tokens';
+import { useTheme } from '../context/ThemeContext';
 
 const DELETE_WIDTH = 80;
 const SWIPE_THRESHOLD = -40;
@@ -19,6 +21,7 @@ interface SwipeableRowProps {
 }
 
 export default function SwipeableRow({ children, onDelete }: SwipeableRowProps) {
+  const { colors } = useTheme();
   const translateX = useRef(new Animated.Value(0)).current;
 
   const panResponder = useRef(
@@ -47,6 +50,7 @@ export default function SwipeableRow({ children, onDelete }: SwipeableRowProps) 
   ).current;
 
   function handleDelete() {
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
     Alert.alert(
       'Delete transaction',
       'This will reverse the balance change. Continue?',
@@ -63,6 +67,22 @@ export default function SwipeableRow({ children, onDelete }: SwipeableRowProps) 
       useNativeDriver: true,
     }).start();
   }
+
+  const styles = useMemo(() => StyleSheet.create({
+    container: { position: 'relative', overflow: 'hidden' },
+    deleteArea: {
+      position: 'absolute',
+      right: 0,
+      top: 0,
+      bottom: 0,
+      width: DELETE_WIDTH,
+      backgroundColor: colors.danger,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    deleteText: { color: '#fff', fontSize: fontSize.sm, fontWeight: '600' },
+    content: { backgroundColor: colors.background },
+  }), [colors]);
 
   return (
     <View style={styles.container}>
@@ -82,19 +102,3 @@ export default function SwipeableRow({ children, onDelete }: SwipeableRowProps) 
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: { position: 'relative', overflow: 'hidden' },
-  deleteArea: {
-    position: 'absolute',
-    right: 0,
-    top: 0,
-    bottom: 0,
-    width: DELETE_WIDTH,
-    backgroundColor: colors.danger,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  deleteText: { color: '#fff', fontSize: fontSize.sm, fontWeight: '600' },
-  content: { backgroundColor: colors.background },
-});

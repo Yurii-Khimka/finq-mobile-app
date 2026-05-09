@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
+import * as Haptics from 'expo-haptics';
 import {
   View,
   Text,
@@ -11,12 +12,14 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { colors, fontSize, spacing } from '../../src/tokens';
+import { fontSize, spacing } from '../../src/tokens';
+import { useTheme } from '../../src/context/ThemeContext';
 import { auth } from '../../src/api/client';
 import { saveToken } from '../../src/store/auth';
 
 export default function RegisterScreen() {
   const router = useRouter();
+  const { colors } = useTheme();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -27,6 +30,7 @@ export default function RegisterScreen() {
     email.trim() !== '' && password !== '' && confirmPassword !== '';
 
   async function handleRegister() {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setError('');
 
     if (password !== confirmPassword) {
@@ -51,6 +55,69 @@ export default function RegisterScreen() {
       setLoading(false);
     }
   }
+
+  const styles = useMemo(() => StyleSheet.create({
+    safe: { flex: 1, backgroundColor: colors.background },
+    flex: { flex: 1 },
+    container: {
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+      paddingHorizontal: spacing.lg,
+      maxWidth: 360,
+      alignSelf: 'center',
+      width: '100%',
+    },
+    appTitle: {
+      fontSize: fontSize.xxl,
+      fontWeight: '700',
+      color: colors.primary,
+    },
+    subtitle: {
+      fontSize: fontSize.lg,
+      color: colors.textSecondary,
+      marginTop: spacing.xs,
+    },
+    input: {
+      width: '100%',
+      height: 48,
+      backgroundColor: colors.surface,
+      borderWidth: 1,
+      borderColor: colors.border,
+      borderRadius: 8,
+      paddingHorizontal: spacing.md,
+      color: colors.text,
+      fontSize: fontSize.md,
+    },
+    error: {
+      color: colors.danger,
+      fontSize: fontSize.sm,
+      alignSelf: 'flex-start',
+    },
+    button: {
+      width: '100%',
+      height: 48,
+      backgroundColor: colors.primary,
+      borderRadius: 8,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    buttonDisabled: { opacity: 0.5 },
+    buttonText: {
+      color: '#fff',
+      fontSize: fontSize.md,
+      fontWeight: '600',
+    },
+    link: {
+      color: colors.textSecondary,
+      fontSize: fontSize.sm,
+      textDecorationLine: 'underline',
+    },
+    spacerXs: { height: spacing.sm },
+    spacerSm: { height: 12 },
+    spacerMd: { height: spacing.md },
+    spacerXl: { height: spacing.xl },
+  }), [colors]);
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -117,7 +184,7 @@ export default function RegisterScreen() {
 
           <View style={styles.spacerMd} />
 
-          <TouchableOpacity onPress={() => router.back()}>
+          <TouchableOpacity onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.back(); }}>
             <Text style={styles.link}>Already have an account? Log in</Text>
           </TouchableOpacity>
         </View>
@@ -125,66 +192,3 @@ export default function RegisterScreen() {
     </SafeAreaView>
   );
 }
-
-const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.background },
-  flex: { flex: 1 },
-  container: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: spacing.lg,
-    maxWidth: 360,
-    alignSelf: 'center',
-    width: '100%',
-  },
-  appTitle: {
-    fontSize: fontSize.xxl,
-    fontWeight: '700',
-    color: colors.primary,
-  },
-  subtitle: {
-    fontSize: fontSize.lg,
-    color: colors.textSecondary,
-    marginTop: spacing.xs,
-  },
-  input: {
-    width: '100%',
-    height: 48,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 8,
-    paddingHorizontal: spacing.md,
-    color: colors.text,
-    fontSize: fontSize.md,
-  },
-  error: {
-    color: colors.danger,
-    fontSize: fontSize.sm,
-    alignSelf: 'flex-start',
-  },
-  button: {
-    width: '100%',
-    height: 48,
-    backgroundColor: colors.primary,
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  buttonDisabled: { opacity: 0.5 },
-  buttonText: {
-    color: '#fff',
-    fontSize: fontSize.md,
-    fontWeight: '600',
-  },
-  link: {
-    color: colors.textSecondary,
-    fontSize: fontSize.sm,
-    textDecorationLine: 'underline',
-  },
-  spacerXs: { height: spacing.sm },
-  spacerSm: { height: 12 },
-  spacerMd: { height: spacing.md },
-  spacerXl: { height: spacing.xl },
-});
