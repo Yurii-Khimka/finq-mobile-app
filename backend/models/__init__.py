@@ -3,3 +3,4 @@ from backend.models.envelope import Envelope
 from backend.models.category import Category
 from backend.models.transaction import Transaction
 from backend.models.config import UserConfig
+from backend.models.refresh_token import RefreshToken

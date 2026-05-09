@@ -12,7 +12,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { colors, fontSize, spacing } from '../../src/tokens';
-import { finance } from '../../src/api/client';
+import { auth, finance } from '../../src/api/client';
 import { clearToken } from '../../src/store/auth';
 import { getConfig as getLocalConfig, upsertConfig, clearAllData } from '../../src/db/queries';
 import { syncConfig } from '../../src/db/sync';
@@ -79,6 +79,9 @@ export default function SettingsScreen() {
           text: 'Log Out',
           style: 'destructive',
           onPress: async () => {
+            try {
+              await auth.logout();
+            } catch { /* server revocation is best-effort */ }
             clearAllData();
             await clearToken();
             router.replace('/(auth)/login');

@@ -13,7 +13,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { colors, fontSize, spacing } from '../../src/tokens';
 import { auth } from '../../src/api/client';
-import { saveToken } from '../../src/store/auth';
+import { saveTokens } from '../../src/store/auth';
 
 export default function RegisterScreen() {
   const router = useRouter();
@@ -36,14 +36,15 @@ export default function RegisterScreen() {
 
     setLoading(true);
     try {
-      await auth.register(email.trim(), password);
-      const tokens = await auth.login(email.trim(), password);
-      await saveToken(tokens.access_token);
+      const tokens = await auth.register(email.trim(), password);
+      await saveTokens(tokens.access_token, tokens.refresh_token);
       router.replace('/(tabs)');
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : String(e);
       if (msg.includes('409')) {
         setError('Email already registered');
+      } else if (msg.includes('422')) {
+        setError('Password must be 8+ chars with at least one letter and one digit');
       } else {
         setError('Cannot connect to server');
       }
