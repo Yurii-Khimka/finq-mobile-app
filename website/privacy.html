@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>finQ — Privacy Policy</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <header class="site-header">
+    <a href="index.html" class="logo">finQ</a>
+  </header>
+
+  <main class="container">
+    <h1>Privacy Policy</h1>
+    <p class="subtitle">Last updated: May 2026</p>
+
+    <section>
+      <h2>What finQ Does</h2>
+      <p>finQ is a personal finance app that helps you track income, expenses, and budget allocation across spending envelopes. It is designed for individual use and does not provide financial advice.</p>
+    </section>
+
+    <section>
+      <h2>Data We Collect</h2>
+      <p>When you use finQ, we collect the following information:</p>
+      <ul>
+        <li><strong>Account information</strong> — your email address and a hashed password, used for authentication.</li>
+        <li><strong>Financial data</strong> — balances, transactions, categories, and envelope allocations that you enter into the app.</li>
+      </ul>
+      <p>We do not collect device identifiers, location data, usage analytics, or any data beyond what you explicitly enter.</p>
+    </section>
+
+    <section>
+      <h2>How Your Data Is Stored</h2>
+      <ul>
+        <li><strong>Server</strong> — your data is stored in a PostgreSQL database on a secured server. All communication between the app and the server uses HTTPS.</li>
+        <li><strong>Device</strong> — a local SQLite cache on your device stores a copy of your data for offline access. This data stays on your device.</li>
+        <li><strong>Credentials</strong> — your authentication token is stored in the iOS Keychain via Expo SecureStore. Your password is never stored in plain text.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>Data Sharing</h2>
+      <p>We do not share, sell, or transfer your data to any third parties. finQ does not include third-party analytics, advertising SDKs, or tracking tools. Your financial data stays between you and the finQ server.</p>
+    </section>
+
+    <section>
+      <h2>Authentication</h2>
+      <p>finQ uses JWT (JSON Web Token) based authentication. Biometric authentication (Face ID / Touch ID) is available as an optional local lock and is processed entirely on your device — no biometric data is sent to our servers.</p>
+    </section>
+
+    <section>
+      <h2>Data Retention</h2>
+      <p>Your data is kept on our servers for as long as your account exists. When you delete your account, all associated data is permanently removed from our servers.</p>
+    </section>
+
+    <section>
+      <h2>Your Rights</h2>
+      <p>You can:</p>
+      <ul>
+        <li>Delete all local data from the Settings screen in the app.</li>
+        <li>Request complete account and data deletion by contacting us at the email below.</li>
+        <li>Export is not currently available but is planned for a future release.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>Children's Privacy</h2>
+      <p>finQ is not designed for or directed at children under the age of 13. We do not knowingly collect data from children. If you believe a child has provided us with personal information, please contact us and we will delete it.</p>
+    </section>
+
+    <section>
+      <h2>Changes to This Policy</h2>
+      <p>We may update this privacy policy from time to time. Changes will be reflected on this page with an updated "Last updated" date. Continued use of the app after changes constitutes acceptance of the updated policy.</p>
+    </section>
+
+    <section>
+      <h2>Contact</h2>
+      <p>If you have questions about this privacy policy or your data, contact us at <a href="mailto:privacy@finq.app">privacy@finq.app</a>.</p>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <p>finQ &mdash; Personal finance, simplified.</p>
+    <p><a href="index.html">Home</a></p>
+  </footer>
+</body>
+</html>

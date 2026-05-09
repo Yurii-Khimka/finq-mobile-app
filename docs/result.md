@@ -8,62 +8,45 @@
 ---
 
 ## Task
-TASK-015 — SQLite local cache (read path)
+TASK-022 — Privacy policy page + GitHub Pages setup
 
 ## Status
 COMPLETED
 
 ## What was done
 
-### 1. New dependency
-- `expo-sqlite` installed (with `--legacy-peer-deps` due to React version conflict)
+### 1. Website directory (`website/`)
+- `index.html` — placeholder landing page with "Coming soon" message and privacy link
+- `privacy.html` — full privacy policy covering all required sections
+- `css/style.css` — shared dark-themed styles (bg #0A0A0A, accent #6366F1, system font stack, 720px max-width, responsive)
+- `.nojekyll` — disables Jekyll processing on GitHub Pages
 
-### 2. Database module (`mobile/src/db/index.ts`)
-- Opens `finq.db` via `SQLite.openDatabaseSync()`
-- `initDB()` creates 5 tables: envelopes, transactions, categories, config, cache_meta
+### 2. Privacy policy content
+Covers: app purpose, data collected (email, financial data), storage (PostgreSQL server, SQLite device, Keychain credentials), no data sharing/analytics/ads, JWT + biometric auth, data retention, user rights (delete from Settings, request account deletion), children's privacy (13+), policy changes, contact (privacy@finq.app placeholder).
 
-### 3. Data access layer (`mobile/src/db/queries.ts`)
-- `getBalances()` / `upsertBalances()` — read/write envelope balances
-- `getTransactions(filter?)` / `upsertTransactions()` / `deleteTransaction()` — with month filter support
-- `getCategories()` / `upsertCategories()` — full replace on sync
-- `getConfig()` / `upsertConfig()` — key-value for base_currency
-- `getCacheTimestamp()` / `setCacheTimestamp()` — track last sync time
-- `clearAllData()` — wipes all tables on logout
+### 3. GitHub Actions workflow (`.github/workflows/deploy-website.yml`)
+- Triggers on push to `main` when `website/**` files change, or manual dispatch
+- Uses `actions/upload-pages-artifact@v3` + `actions/deploy-pages@v4`
+- Deploys only the `website/` directory to GitHub Pages
 
-### 4. Sync module (`mobile/src/db/sync.ts`)
-- `syncBalances()`, `syncHistory()`, `syncCategories()`, `syncConfig()` — fetch from server, upsert into SQLite
-- `syncAll()` — parallel sync of all data types
-
-### 5. Root layout (`mobile/app/_layout.tsx`)
-- Calls `initDB()` on app start
-- Calls `syncAll()` after auth check passes (non-blocking)
-
-### 6. Screen rewiring
-
-**Home:** reads SQLite first, syncs server in background, error only if both fail
-**History:** reads SQLite first, syncs server; delete updates both server and SQLite
-**Expense:** reads categories from SQLite; syncs balances+history after submission
-**Income:** syncs balances after submission
-**Audit:** no caching (computed server-side); graceful "requires internet" message
-**Settings:** reads config from SQLite; updates SQLite on currency change; clears all data on logout
+## Files created
+- `website/index.html` — NEW
+- `website/privacy.html` — NEW
+- `website/css/style.css` — NEW
+- `website/.nojekyll` — NEW
+- `.github/workflows/deploy-website.yml` — NEW
 
 ## Files changed
-- `mobile/src/db/index.ts` — NEW
-- `mobile/src/db/queries.ts` — NEW
-- `mobile/src/db/sync.ts` — NEW
-- `mobile/app/_layout.tsx` — EDIT
-- `mobile/app/(tabs)/index.tsx` — EDIT
-- `mobile/app/(tabs)/history.tsx` — EDIT
-- `mobile/app/(tabs)/expense.tsx` — EDIT
-- `mobile/app/(tabs)/income.tsx` — EDIT
-- `mobile/app/(tabs)/audit.tsx` — EDIT
-- `mobile/app/(tabs)/settings.tsx` — EDIT
-- `mobile/package.json` — added expo-sqlite
+- `docs/plan.md` — updated for TASK-022
+- `docs/result.md` — this file
 
 ## Verification
 ```
-cd mobile && npx tsc --noEmit  → 0 errors
+ls -la website/          # index.html, privacy.html, css/, .nojekyll
+ls -la .github/workflows/ # deploy-website.yml
+# Open website/privacy.html in browser — dark theme, all sections present
+# Open website/index.html — placeholder with privacy link
 ```
 
 ## Changelog entry
-- **TASK-015:** SQLite local cache with offline-first reads, server background sync, and cache clearing on logout
+- **TASK-022:** Static privacy policy page, placeholder landing, shared CSS, and GitHub Pages deployment workflow
