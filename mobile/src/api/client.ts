@@ -1,4 +1,4 @@
-import { getToken } from '../store/auth';
+import { getToken, getRefreshToken, saveTokens } from '../store/auth';
 import type {
   AuthTokens,
   BalancesResponse,
@@ -24,6 +24,24 @@ import type {
 
 const BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:8000';
 
+async function tryRefreshToken(): Promise<boolean> {
+  const refresh = await getRefreshToken();
+  if (!refresh) return false;
+  try {
+    const res = await fetch(`${BASE_URL}/auth/refresh`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ refresh_token: refresh }),
+    });
+    if (!res.ok) return false;
+    const data = (await res.json()) as AuthTokens;
+    await saveTokens(data.access_token, data.refresh_token);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const token = await getToken();
   const headers: Record<string, string> = {
@@ -34,7 +52,19 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
     headers['Authorization'] = `Bearer ${token}`;
   }
 
-  const res = await fetch(`${BASE_URL}${path}`, { ...options, headers });
+  let res = await fetch(`${BASE_URL}${path}`, { ...options, headers });
+
+  if (res.status === 401 && path !== '/auth/refresh' && path !== '/auth/login') {
+    const refreshed = await tryRefreshToken();
+    if (refreshed) {
+      const newToken = await getToken();
+      if (newToken) {
+        headers['Authorization'] = `Bearer ${newToken}`;
+      }
+      res = await fetch(`${BASE_URL}${path}`, { ...options, headers });
+    }
+  }
+
   if (!res.ok) {
     const body = await res.text();
     throw new Error(`${res.status}: ${body}`);
@@ -54,6 +84,8 @@ export const auth = {
       method: 'POST',
       body: JSON.stringify({ email, password }),
     }),
+  logout: () =>
+    request<{ status: string }>('/auth/logout', { method: 'POST' }),
 };
 
 // Finance

@@ -1,3 +1,4 @@
+import secrets
 from datetime import datetime, timedelta
 from uuid import UUID
 
@@ -7,9 +8,10 @@ from jose import JWTError, jwt
 from passlib.context import CryptContext
 from sqlalchemy.orm import Session
 
-from backend.config import JWT_SECRET
+from backend.config import JWT_SECRET, ACCESS_TOKEN_EXPIRE_MINUTES, REFRESH_TOKEN_EXPIRE_DAYS
 from backend.database import get_db
 from backend.models.user import User
+from backend.models.refresh_token import RefreshToken
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
@@ -25,10 +27,45 @@ def verify_password(plain: str, hashed: str) -> bool:
     return pwd_context.verify(plain, hashed)
 
 
-def create_access_token(user_id: UUID, expires_minutes: int = 60) -> str:
-    expire = datetime.utcnow() + timedelta(minutes=expires_minutes)
+def create_access_token(user_id: UUID) -> str:
+    expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     payload = {"sub": str(user_id), "exp": expire}
     return jwt.encode(payload, JWT_SECRET, algorithm=ALGORITHM)
+
+
+def create_refresh_token(user_id: UUID, db: Session) -> str:
+    token = secrets.token_hex(32)
+    expires = datetime.utcnow() + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
+    rt = RefreshToken(user_id=user_id, token=token, expires_at=expires)
+    db.add(rt)
+    db.commit()
+    return token
+
+
+def validate_refresh_token(token: str, db: Session) -> User | None:
+    rt = db.query(RefreshToken).filter(
+        RefreshToken.token == token,
+        RefreshToken.revoked == False,
+        RefreshToken.expires_at > datetime.utcnow(),
+    ).first()
+    if not rt:
+        return None
+    return db.query(User).filter(User.id == rt.user_id).first()
+
+
+def revoke_refresh_token(token: str, db: Session) -> None:
+    rt = db.query(RefreshToken).filter(RefreshToken.token == token).first()
+    if rt:
+        rt.revoked = True
+        db.commit()
+
+
+def revoke_all_user_tokens(user_id: UUID, db: Session) -> None:
+    db.query(RefreshToken).filter(
+        RefreshToken.user_id == user_id,
+        RefreshToken.revoked == False,
+    ).update({"revoked": True})
+    db.commit()
 
 
 def get_current_user(

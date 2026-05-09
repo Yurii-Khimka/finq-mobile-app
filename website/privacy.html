@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Privacy Policy — finQ</title>
+<meta name="description" content="How finQ handles your data — short, plain, and respectful."/>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Readex+Pro:wght@300;400;500;600;700&family=Lato:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="site.css"/>
+<style>
+  .page-head { padding: clamp(40px, 6vw, 72px) 0 clamp(20px, 3vw, 32px); }
+  .privacy-grid {
+    display: grid; grid-template-columns: 240px 1fr; gap: 48px;
+    padding-bottom: clamp(48px, 7vw, 80px);
+    align-items: start;
+  }
+  @media (max-width: 900px) { .privacy-grid { grid-template-columns: 1fr; gap: 24px; } }
+
+  .toc {
+    position: sticky; top: 88px;
+    padding: 20px; border-radius: var(--radius);
+    background: var(--bg-2); border: 1px solid var(--hairline);
+    font-size: 13px;
+  }
+  .toc-title { font-size: 11px; text-transform: uppercase; letter-spacing: .12em; color: var(--fg-3); font-weight: 500; margin-bottom: 12px; }
+  .toc a { display: block; padding: 6px 0; color: var(--fg-2); border-radius: 6px; }
+  .toc a:hover { color: var(--accent); }
+  @media (max-width: 900px) { .toc { position: static; } }
+
+  .privacy-content {
+    padding: 36px clamp(24px, 4vw, 48px);
+    border-radius: var(--radius-lg);
+    background: var(--bg-2);
+    border: 1px solid var(--hairline);
+    box-shadow: var(--shadow-card);
+  }
+  .privacy-content section {
+    padding: 0; margin-top: 36px;
+    scroll-margin-top: 88px;
+  }
+  .privacy-content section:first-of-type { margin-top: 0; }
+  .privacy-content h2 {
+    font-size: 22px; font-weight: 500; letter-spacing: -.01em;
+    margin-bottom: 12px;
+  }
+  .privacy-content p, .privacy-content li {
+    color: var(--fg-2); line-height: 1.7; font-size: 15px;
+  }
+  .privacy-content p + p { margin-top: 12px; }
+  .privacy-content ul { padding-left: 22px; margin-top: 10px; }
+  .privacy-content li + li { margin-top: 6px; }
+  .privacy-content strong { color: var(--fg); font-weight: 500; }
+
+  .meta-bar {
+    display: flex; gap: 24px; flex-wrap: wrap;
+    padding: 16px 20px; background: var(--bg-3);
+    border-radius: 14px; font-size: 13px; color: var(--fg-2);
+    margin-bottom: 28px;
+  }
+  .meta-bar strong { color: var(--fg); margin-right: 4px; }
+</style>
+</head>
+<body>
+
+<div id="nav" data-active="privacy"></div>
+
+<div class="page-head">
+  <div class="container" style="max-width: 760px;">
+    <span class="eyebrow">Plain English</span>
+    <h1 style="margin-top: 14px; font-size: clamp(36px, 5vw, 56px);">Privacy policy</h1>
+    <p class="lead" style="margin-top: 14px;">
+      A short, honest summary of what we do with your data. We treat it the way we'd want ours treated.
+    </p>
+  </div>
+</div>
+
+<div class="container">
+  <div class="privacy-grid">
+
+    <aside class="toc" aria-label="Table of contents">
+      <div class="toc-title">On this page</div>
+      <a href="#intro">Overview</a>
+      <a href="#what">What we collect</a>
+      <a href="#how">How we use it</a>
+      <a href="#share">Sharing</a>
+      <a href="#storage">Storage &amp; security</a>
+      <a href="#rights">Your rights</a>
+      <a href="#children">Children</a>
+      <a href="#changes">Changes</a>
+      <a href="#contact">Contact</a>
+    </aside>
+
+    <article class="privacy-content">
+      <div class="meta-bar">
+        <div><strong>Effective:</strong> May 9, 2026</div>
+        <div><strong>Last updated:</strong> May 9, 2026</div>
+        <div><strong>Version:</strong> 1.0</div>
+      </div>
+
+      <section id="intro">
+        <h2>1. Overview</h2>
+        <p>
+          finQ ("we", "our", "the app") is a personal finance companion designed to help you
+          build healthy money habits. We believe your financial data is private by default,
+          and this policy explains exactly what we do — and don't — touch.
+        </p>
+        <p>
+          By using finQ, you agree to the practices described below. If anything is unclear,
+          please <a href="feedback.html" style="color: var(--accent);">reach out</a>.
+        </p>
+      </section>
+
+      <section id="what">
+        <h2>2. What we collect</h2>
+        <p>finQ is structured to keep your financial data on your device whenever possible. The categories of data we may handle are:</p>
+        <ul>
+          <li><strong>Account info.</strong> Name and email, only if you create an account or contact support.</li>
+          <li><strong>Financial entries.</strong> Incomes, expenses, envelopes, and goals you add inside the app — stored locally.</li>
+          <li><strong>Diagnostic data.</strong> Anonymous crash logs and basic usage events to keep the app stable. No transaction details.</li>
+          <li><strong>Communications.</strong> Anything you send us via the contact form or email.</li>
+        </ul>
+        <p>We do not link to your bank, scrape your statements, or read your SMS.</p>
+      </section>
+
+      <section id="how">
+        <h2>3. How we use it</h2>
+        <p>We use the data described above only to:</p>
+        <ul>
+          <li>Run the features you explicitly use (e.g. computing the discipline waterfall, daily budget, audit summary).</li>
+          <li>Reply to your messages and support requests.</li>
+          <li>Improve stability via aggregated, anonymous diagnostics — opt-out at any time in Settings.</li>
+        </ul>
+        <p>We never sell your data, and we never use it to train marketing or advertising profiles.</p>
+      </section>
+
+      <section id="share">
+        <h2>4. Sharing</h2>
+        <p>
+          We don't share your data with third parties for advertising or analytics resale.
+          The only narrow cases in which limited information may be shared:
+        </p>
+        <ul>
+          <li><strong>Infrastructure providers</strong> we use to deliver the app (e.g. crash reporting, email delivery for support replies). They process data on our instructions only.</li>
+          <li><strong>Legal compliance</strong> when required by valid law enforcement requests in the relevant jurisdiction.</li>
+        </ul>
+      </section>
+
+      <section id="storage">
+        <h2>5. Storage &amp; security</h2>
+        <p>
+          Financial entries are stored on your device. Account and support data are stored on
+          encrypted servers in the EU. We use industry-standard transport encryption (TLS) and
+          at-rest encryption for any data we host on your behalf.
+        </p>
+        <p>
+          No system is perfectly secure, but we work to minimize the data we hold so that there
+          is little to compromise in the first place.
+        </p>
+      </section>
+
+      <section id="rights">
+        <h2>6. Your rights</h2>
+        <p>Depending on where you live, you may have the right to:</p>
+        <ul>
+          <li>Access a copy of your personal data.</li>
+          <li>Correct or update inaccurate data.</li>
+          <li>Delete your account and associated data.</li>
+          <li>Withdraw consent for diagnostic collection.</li>
+          <li>Lodge a complaint with your local data-protection authority.</li>
+        </ul>
+        <p>To exercise any of these, email <a href="mailto:privacy@finq.app" style="color: var(--accent);">privacy@finq.app</a>. We aim to respond within 14 days.</p>
+      </section>
+
+      <section id="children">
+        <h2>7. Children</h2>
+        <p>
+          finQ is not directed at children under 13 (or under 16 in the EEA). We do not knowingly
+          collect data from minors. If you believe a minor has provided us with personal data,
+          please contact us so we can delete it.
+        </p>
+      </section>
+
+      <section id="changes">
+        <h2>8. Changes</h2>
+        <p>
+          We may update this policy as the product evolves. When changes are material, we'll
+          notify you via the app or email. The "Last updated" date at the top of this page
+          always reflects the current revision.
+        </p>
+      </section>
+
+      <section id="contact">
+        <h2>9. Contact</h2>
+        <p>
+          Questions, concerns, or curiosities? Email
+          <a href="mailto:privacy@finq.app" style="color: var(--accent);">privacy@finq.app</a>
+          or use the <a href="feedback.html" style="color: var(--accent);">feedback form</a>.
+          We genuinely read every message.
+        </p>
+      </section>
+    </article>
+
+  </div>
+</div>
+
+<div id="footer"></div>
+
+<script src="site.js"></script>
+</body>
+</html>

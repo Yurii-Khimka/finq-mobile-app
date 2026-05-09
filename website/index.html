@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>finQ — A calm financial companion</title>
+<meta name="description" content="finQ helps you build healthy money habits naturally — through the four envelopes system. Calm, friendly, and quietly disciplined."/>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Readex+Pro:wght@300;400;500;600;700&family=Lato:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="site.css"/>
+<style>
+  /* ── Hero device illustration ─────────────────────────── */
+  .hero-device {
+    width: 320px; max-width: 100%;
+    aspect-ratio: 393/720;
+    background: var(--bg-2);
+    border-radius: 36px;
+    border: 1px solid var(--hairline);
+    padding: 18px;
+    box-shadow: var(--shadow-hero);
+    margin: 0 auto;
+    display: flex; flex-direction: column; gap: 12px;
+    position: relative;
+  }
+  .hero-device::after {
+    content: ""; position: absolute; left: 50%; top: 14px;
+    transform: translateX(-50%);
+    width: 80px; height: 22px; border-radius: 12px;
+    background: color-mix(in oklab, var(--fg) 80%, transparent);
+  }
+  .hd-month {
+    margin-top: 28px; font-size: 13px; color: var(--fg-3);
+    text-align: center; padding: 10px 0; border-radius: 12px;
+    background: var(--bg-3);
+  }
+  .hd-balance {
+    background: var(--bg);
+    border-radius: 14px;
+    padding: 14px;
+  }
+  .hd-balance-label { font-size: 11px; color: var(--fg-3); }
+  .hd-balance-value { font-family: var(--font-num); font-size: 26px; color: var(--accent); font-weight: 300; margin-top: 2px; letter-spacing: -.02em; }
+  .hd-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .hd-tile {
+    background: var(--bg);
+    border-radius: 14px; padding: 12px;
+  }
+  .hd-tile-row { display: flex; justify-content: space-between; align-items: center; }
+  .hd-tile-label { font-size: 11px; color: var(--fg-2); font-weight: 500; }
+  .hd-tile-value { font-family: var(--font-num); font-size: 16px; font-weight: 300; margin-top: 6px; letter-spacing: -.01em; }
+  .hd-bar { height: 4px; background: var(--bg-3); border-radius: 999px; overflow: hidden; margin-top: 8px; }
+  .hd-bar > div { height: 100%; border-radius: 999px; }
+
+  /* ── Envelope cards ───────────────────────────────────── */
+  .envs { display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px; }
+  @media (max-width: 900px) { .envs { grid-template-columns: repeat(2, 1fr); } }
+  @media (max-width: 480px) { .envs { grid-template-columns: 1fr; } }
+  .env-card {
+    padding: 26px 22px; border-radius: var(--radius-lg);
+    background: var(--bg-2); border: 1px solid var(--hairline);
+    box-shadow: var(--shadow-card);
+    transition: transform .25s, box-shadow .25s;
+    position: relative; overflow: hidden;
+  }
+  .env-card:hover { transform: translateY(-4px); box-shadow: var(--shadow-pop); }
+  .env-card::before {
+    content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 4px;
+    background: var(--c, var(--accent));
+  }
+  .env-share {
+    font-family: var(--font-num); font-size: 14px; font-weight: 500;
+    color: var(--c, var(--accent)); letter-spacing: .02em;
+  }
+  .env-name { font-size: 22px; font-weight: 500; margin-top: 8px; letter-spacing: -.01em; }
+  .env-desc { font-size: 14px; color: var(--fg-2); margin-top: 10px; line-height: 1.6; }
+
+  /* ── Feature row ──────────────────────────────────────── */
+  .features { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; }
+  @media (max-width: 900px) { .features { grid-template-columns: 1fr; } }
+  .feature {
+    padding: 32px;
+    border-radius: var(--radius-lg);
+    background: var(--bg-2);
+    border: 1px solid var(--hairline);
+  }
+  .feature-icon {
+    width: 44px; height: 44px; border-radius: 12px; display: grid; place-items: center;
+    background: var(--accent-2); color: var(--accent);
+    margin-bottom: 18px;
+  }
+  .feature h3 { margin-bottom: 8px; }
+  .feature p { color: var(--fg-2); font-size: 15px; }
+
+  /* ── How it works ─────────────────────────────────────── */
+  .steps { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 24px; }
+  @media (max-width: 900px) { .steps { grid-template-columns: 1fr; } }
+  .step { padding: 28px; border-radius: var(--radius-lg); background: var(--bg-2); border: 1px solid var(--hairline); }
+  .step-num {
+    font-family: var(--font-num); font-size: 13px; color: var(--fg-3);
+    letter-spacing: .12em; text-transform: uppercase;
+  }
+  .step h3 { margin-top: 14px; }
+  .step p { margin-top: 8px; color: var(--fg-2); font-size: 15px; line-height: 1.6; }
+
+  /* ── Final CTA ────────────────────────────────────────── */
+  .cta {
+    padding: clamp(48px, 7vw, 80px); text-align: center;
+    border-radius: var(--radius-xl);
+    background: linear-gradient(135deg, var(--accent), color-mix(in oklab, var(--accent) 65%, white));
+    color: white; box-shadow: var(--shadow-hero);
+  }
+  .cta h2 { color: white; }
+  .cta p { color: rgba(255,255,255,0.85); margin-top: 14px; max-width: 540px; margin-left: auto; margin-right: auto; }
+  .cta-actions { display: flex; gap: 12px; justify-content: center; margin-top: 28px; flex-wrap: wrap; }
+  .cta-btn-light { background: white; color: var(--accent); }
+  .cta-btn-light:hover { box-shadow: 0 12px 32px -8px rgba(0,0,0,.2); }
+  .cta-btn-clear { background: rgba(255,255,255,0.15); color: white; backdrop-filter: blur(10px); }
+  .cta-btn-clear:hover { background: rgba(255,255,255,0.25); }
+
+  /* ── Quote / philosophy ───────────────────────────────── */
+  .quote {
+    max-width: 760px; margin: 0 auto; text-align: center;
+    font-size: clamp(22px, 3vw, 32px);
+    line-height: 1.4; color: var(--fg);
+    font-weight: 300; letter-spacing: -.01em;
+  }
+  .quote em { color: var(--accent); font-style: normal; }
+
+  /* ── Hero CTA group ───────────────────────────────────── */
+  .hero-actions { display: flex; gap: 12px; margin-top: 32px; flex-wrap: wrap; }
+  .hero-meta {
+    display: flex; gap: 24px; margin-top: 28px; font-size: 13px; color: var(--fg-3);
+    flex-wrap: wrap;
+  }
+  .hero-meta-item { display: flex; align-items: center; gap: 6px; }
+  .hero-meta-item svg { color: var(--good); }
+</style>
+</head>
+<body>
+
+<div id="nav" data-active="home"></div>
+
+<!-- ── Hero ─────────────────────────────────────────────── -->
+<section class="hero">
+  <div class="container hero-grid">
+    <div>
+      <span class="eyebrow">A calm money companion</span>
+      <h1 style="margin-top: 16px;">
+        Money habits, gently <em style="font-style: normal; color: var(--accent);">on autopilot</em>.
+      </h1>
+      <p class="lead" style="margin-top: 20px; max-width: 540px;">
+        finQ splits each income across four envelopes — Mandatory, Optional, Savings, Goals —
+        and lets your spending cascade through them. No spreadsheets, no shame, no guru tone.
+        Just a quiet structure that teaches you to manage money almost without thinking.
+      </p>
+      <div class="hero-actions">
+        <a class="btn btn-primary btn-lg" href="#">
+          Open the prototype
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 5l7 7-7 7"/></svg>
+        </a>
+        <a class="btn btn-outline btn-lg" href="#how">How it works</a>
+      </div>
+      <div class="hero-meta">
+        <div class="hero-meta-item">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+          No spreadsheets
+        </div>
+        <div class="hero-meta-item">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+          No judgement
+        </div>
+        <div class="hero-meta-item">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+          Built for keyboard people
+        </div>
+      </div>
+    </div>
+
+    <!-- Hero device illustration -->
+    <div class="hero-device" aria-hidden="true">
+      <div class="hd-month">April 2026</div>
+      <div class="hd-balance">
+        <div class="hd-balance-label">Available balance</div>
+        <div class="hd-balance-value num">$3,420.50</div>
+      </div>
+      <div class="hd-grid">
+        <div class="hd-tile">
+          <div class="hd-tile-row">
+            <span class="hd-tile-label">Mandatory</span>
+          </div>
+          <div class="hd-tile-value num">$1,820</div>
+          <div class="hd-bar"><div style="width: 64%; background: var(--env-mandatory);"></div></div>
+        </div>
+        <div class="hd-tile">
+          <div class="hd-tile-row">
+            <span class="hd-tile-label">Optional</span>
+          </div>
+          <div class="hd-tile-value num">$610</div>
+          <div class="hd-bar"><div style="width: 38%; background: var(--env-optional);"></div></div>
+        </div>
+        <div class="hd-tile">
+          <div class="hd-tile-row">
+            <span class="hd-tile-label">Savings</span>
+          </div>
+          <div class="hd-tile-value num">$540</div>
+          <div class="hd-bar"><div style="width: 78%; background: var(--env-investments);"></div></div>
+        </div>
+        <div class="hd-tile">
+          <div class="hd-tile-row">
+            <span class="hd-tile-label">Goals</span>
+          </div>
+          <div class="hd-tile-value num">$450</div>
+          <div class="hd-bar"><div style="width: 52%; background: var(--env-dreams);"></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── Philosophy quote ─────────────────────────────────── -->
+<section style="padding-top: 24px; padding-bottom: 24px;">
+  <div class="container">
+    <p class="quote">
+      Discipline shouldn't feel like punishment.<br/>
+      With finQ, healthy money habits become <em>the path of least resistance</em>.
+    </p>
+  </div>
+</section>
+
+<!-- ── Four envelopes ───────────────────────────────────── -->
+<section id="envelopes">
+  <div class="container">
+    <div class="section-head">
+      <span class="eyebrow">The four envelopes</span>
+      <h2>One income, automatically split.</h2>
+      <p class="lead">
+        Every time money comes in, finQ pours it into four envelopes by share.
+        Spend within the right one, and your habits quietly take care of themselves.
+      </p>
+    </div>
+    <div class="envs">
+      <div class="env-card" style="--c: var(--env-mandatory);">
+        <div class="env-share num">50%</div>
+        <div class="env-name">Mandatory</div>
+        <p class="env-desc">Rent, bills, groceries, transport. The non-negotiable foundation of your month.</p>
+      </div>
+      <div class="env-card" style="--c: var(--env-optional);">
+        <div class="env-share num">30%</div>
+        <div class="env-name">Optional</div>
+        <p class="env-desc">Eating out, hobbies, small joys. Permission to spend, with a soft ceiling.</p>
+      </div>
+      <div class="env-card" style="--c: var(--env-investments);">
+        <div class="env-share num">10%</div>
+        <div class="env-name">Savings</div>
+        <p class="env-desc">A quiet stream toward your future self. Untouched unless you really need it.</p>
+      </div>
+      <div class="env-card" style="--c: var(--env-dreams);">
+        <div class="env-share num">10%</div>
+        <div class="env-name">Goals</div>
+        <p class="env-desc">The trip, the camera, the move. The fund that turns wishes into plans.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── How it works ─────────────────────────────────────── -->
+<section id="how" style="background: var(--bg-3); border-radius: 32px; margin: 0 24px;">
+  <div class="container">
+    <div class="section-head">
+      <span class="eyebrow">How it works</span>
+      <h2>Three small steps. One big shift.</h2>
+    </div>
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">01 — Income</div>
+        <h3>Money arrives, money splits.</h3>
+        <p>Add an income and finQ instantly distributes it across your four envelopes. No mental math, no decision fatigue.</p>
+      </div>
+      <div class="step">
+        <div class="step-num">02 — Spend</div>
+        <h3>Expenses cascade.</h3>
+        <p>Buy groceries — Mandatory takes the hit. Buy a concert ticket — Optional does. If one runs dry, the next quietly covers it, and you'll see exactly why.</p>
+      </div>
+      <div class="step">
+        <div class="step-num">03 — Reflect</div>
+        <h3>Patterns surface gently.</h3>
+        <p>A simple heatmap shows when you spend most. Daily Budget tells you what's safe. No charts that demand action — just clarity that earns trust.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── Features ─────────────────────────────────────────── -->
+<section>
+  <div class="container">
+    <div class="section-head">
+      <span class="eyebrow">Designed to disappear</span>
+      <h2>Everything you need. Nothing that nags.</h2>
+    </div>
+    <div class="features">
+      <div class="feature">
+        <div class="feature-icon">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h4l3-9 4 18 3-9h4"/></svg>
+        </div>
+        <h3>Discipline waterfall</h3>
+        <p>One mechanic, the whole product. Income splits; expenses cascade. The system stays out of your way until it matters.</p>
+      </div>
+      <div class="feature">
+        <div class="feature-icon">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M9 9h6M9 13h6M9 17h3"/></svg>
+        </div>
+        <h3>Daily Budget</h3>
+        <p>A single, friendly number: what's safe to spend today. Stretch it across days you actually have, not abstract months.</p>
+      </div>
+      <div class="feature">
+        <div class="feature-icon">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v6M12 16v6M2 12h6M16 12h6M5 5l4 4M15 15l4 4M5 19l4-4M15 9l4-4"/></svg>
+        </div>
+        <h3>Spending heatmap</h3>
+        <p>Three rows, five days. Notice that you spend more in the evening — without anyone telling you off about it.</p>
+      </div>
+      <div class="feature">
+        <div class="feature-icon">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>
+        </div>
+        <h3>Audit, on your terms</h3>
+        <p>Burn rate, runway, the rare cascade. A calm summary you can open when you're curious — never a notification you can't dismiss.</p>
+      </div>
+      <div class="feature">
+        <div class="feature-icon">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+        </div>
+        <h3>Yours, locally</h3>
+        <p>No bank linking, no scraping, no algorithm trying to upsell you a credit card. Your ledger lives where you live.</p>
+      </div>
+      <div class="feature">
+        <div class="feature-icon">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a4 4 0 0 1-4 4H7l-4 4V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z"/></svg>
+        </div>
+        <h3>Made for the keyboard</h3>
+        <p>finQ began as a terminal app, and the mobile version still feels like one — fast, terse, beautifully ergonomic.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── Outcomes (what improves) ─────────────────────────── -->
+<section>
+  <div class="container">
+    <div class="section-head">
+      <span class="eyebrow">What changes, slowly</span>
+      <h2>You don't notice the lessons. You notice the results.</h2>
+    </div>
+    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px;" class="outcomes">
+      <div class="card" style="padding: 28px;">
+        <div class="num" style="font-size: 36px; font-weight: 300; color: var(--accent); letter-spacing: -.02em;">∼ 12 mins</div>
+        <p style="margin-top: 10px; color: var(--fg-2);">a month is all the active management most users do.</p>
+      </div>
+      <div class="card" style="padding: 28px;">
+        <div class="num" style="font-size: 36px; font-weight: 300; color: var(--accent); letter-spacing: -.02em;">4 envelopes</div>
+        <p style="margin-top: 10px; color: var(--fg-2);">replace the dozen budget categories that used to overwhelm you.</p>
+      </div>
+      <div class="card" style="padding: 28px;">
+        <div class="num" style="font-size: 36px; font-weight: 300; color: var(--accent); letter-spacing: -.02em;">0 dashboards</div>
+        <p style="margin-top: 10px; color: var(--fg-2);">to study. The only number you really need is "safe today".</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<style>
+  @media (max-width: 900px) { .outcomes { grid-template-columns: 1fr !important; } }
+</style>
+
+<!-- ── Final CTA ────────────────────────────────────────── -->
+<section>
+  <div class="container">
+    <div class="cta">
+      <h2>Try the four envelopes today.</h2>
+      <p>Open the interactive prototype — no signup, no install. See exactly how the discipline waterfall feels in your hand.</p>
+      <div class="cta-actions">
+        <a class="btn btn-lg cta-btn-light" href="#">
+          Open prototype
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 5l7 7-7 7"/></svg>
+        </a>
+        <a class="btn btn-lg cta-btn-clear" href="feedback.html">Send feedback</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div id="footer"></div>
+
+<script src="site.js"></script>
+</body>
+</html>

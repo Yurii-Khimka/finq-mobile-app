@@ -13,7 +13,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { colors, fontSize, spacing } from '../../src/tokens';
 import { auth } from '../../src/api/client';
-import { saveToken } from '../../src/store/auth';
+import { saveTokens } from '../../src/store/auth';
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -29,7 +29,7 @@ export default function LoginScreen() {
     setLoading(true);
     try {
       const tokens = await auth.login(email.trim(), password);
-      await saveToken(tokens.access_token);
+      await saveTokens(tokens.access_token, tokens.refresh_token);
       router.replace('/(tabs)');
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : String(e);
