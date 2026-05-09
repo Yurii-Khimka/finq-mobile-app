@@ -8,45 +8,51 @@
 ---
 
 ## Task
-TASK-022 — Privacy policy page + GitHub Pages setup
+TASK-023 — Landing page, feedback form, and privacy page from Claude Design
 
 ## Status
 COMPLETED
 
 ## What was done
 
-### 1. Website directory (`website/`)
-- `index.html` — placeholder landing page with "Coming soon" message and privacy link
-- `privacy.html` — full privacy policy covering all required sections
-- `css/style.css` — shared dark-themed styles (bg #0A0A0A, accent #6366F1, system font stack, 720px max-width, responsive)
-- `.nojekyll` — disables Jekyll processing on GitHub Pages
+### 1. Replaced `website/` contents with Claude Design files
+- Deleted old `website/css/style.css` and `website/css/` directory
+- Deleted old `website/index.html` and `website/privacy.html`
+- Copied from `/tmp/finq-design/finq/project/site/`:
+  - `index.html` — landing page with hero, device illustration, envelope cards, features, how-it-works, outcomes, CTA
+  - `feedback.html` — feedback form with reason chips, info card, mock submit with success state
+  - `privacy.html` — full privacy policy with sticky TOC, 9 sections, meta bar
+  - `site.css` — design tokens, light/dark themes, responsive layout, typography, components
+  - `site.js` — shared nav/footer injection, theme toggle with localStorage, mobile hamburger menu
+- Preserved `.nojekyll`
 
-### 2. Privacy policy content
-Covers: app purpose, data collected (email, financial data), storage (PostgreSQL server, SQLite device, Keychain credentials), no data sharing/analytics/ads, JWT + biometric auth, data retention, user rights (delete from Settings, request account deletion), children's privacy (13+), policy changes, contact (privacy@finq.app placeholder).
+### 2. Link adaptation
+- Replaced all `../FinQ Prototype.html` hrefs with `#` (dead links for now) in `index.html` and `site.js`
+- No other modifications to the design files
 
-### 3. GitHub Actions workflow (`.github/workflows/deploy-website.yml`)
-- Triggers on push to `main` when `website/**` files change, or manual dispatch
-- Uses `actions/upload-pages-artifact@v3` + `actions/deploy-pages@v4`
-- Deploys only the `website/` directory to GitHub Pages
+## Files deleted
+- `website/css/style.css`
+- `website/css/` (directory)
 
-## Files created
-- `website/index.html` — NEW
-- `website/privacy.html` — NEW
-- `website/css/style.css` — NEW
-- `website/.nojekyll` — NEW
-- `.github/workflows/deploy-website.yml` — NEW
+## Files created / replaced
+- `website/index.html` — replaced with Claude Design version
+- `website/feedback.html` — NEW
+- `website/privacy.html` — replaced with Claude Design version
+- `website/site.css` — NEW
+- `website/site.js` — NEW
 
-## Files changed
-- `docs/plan.md` — updated for TASK-022
-- `docs/result.md` — this file
+## Files unchanged
+- `website/.nojekyll` — kept as-is
+- `.github/workflows/deploy-website.yml` — untouched
 
 ## Verification
 ```
-ls -la website/          # index.html, privacy.html, css/, .nojekyll
-ls -la .github/workflows/ # deploy-website.yml
-# Open website/privacy.html in browser — dark theme, all sections present
-# Open website/index.html — placeholder with privacy link
+ls -la website/
+# .nojekyll, feedback.html, index.html, privacy.html, site.css, site.js
+
+grep -r "FinQ Prototype" website/
+# No matches — all prototype links replaced with #
 ```
 
 ## Changelog entry
-- **TASK-022:** Static privacy policy page, placeholder landing, shared CSS, and GitHub Pages deployment workflow
+- **TASK-023:** Replaced placeholder website with polished Claude Design: landing page, feedback form, privacy policy, shared CSS/JS with light/dark theme toggle

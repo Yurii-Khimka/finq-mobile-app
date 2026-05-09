@@ -8,167 +8,116 @@
 
 ## Active Task
 
-**TASK-022 — Privacy policy page + GitHub Pages setup**
-Goal: Create a `website/` directory with a static privacy policy page. Configure GitHub Pages deployment. This unblocks the App Store submission (Apple requires a privacy policy URL).
-
-The landing page and feedback form will come later once the design is ready from Claude Design.
+**TASK-023 — Landing page, feedback form, and privacy page from Claude Design**
+Goal: Replace the placeholder `website/` contents with the polished design from Claude Design. Three pages: landing (index.html), feedback form (feedback.html), and privacy policy (privacy.html). Shared CSS/JS with light/dark theme toggle.
 
 ---
 
 ## Context
 
-Apple requires a public privacy policy URL before App Store submission. The project has no website yet. The plan is to host everything on GitHub Pages (free, no extra infra).
+The user created a design in Claude Design. The exported bundle is at `/tmp/finq-design/finq/project/site/`. It contains four files:
+- `index.html` — landing page with hero, envelope cards, features, how-it-works, CTA
+- `feedback.html` — feedback form with reason chips
+- `privacy.html` — privacy policy with sticky TOC
+- `site.css` — shared design tokens + base styles (light/dark themes)
+- `site.js` — shared nav/footer injection + theme toggle
 
-This task sets up the website skeleton and ships the privacy policy first. The landing page design will be created separately in Claude Design and implemented in a future task.
+The current `website/` directory has a basic placeholder from TASK-022. Replace it entirely with the Claude Design files, with some adaptations.
 
 ---
 
 ## What Must NOT Be Changed
 
 - Do not modify anything in `backend/` or `mobile/`
-- Do not create a landing page — that comes later with the Claude Design
+- Do not change the GitHub Actions workflow (`.github/workflows/deploy-website.yml`) — it already deploys `website/` to GitHub Pages
+- Preserve the `.nojekyll` file
 
 ---
 
-## Read First
+## Read First (source files from Claude Design)
 
-- Repo root structure (`backend/`, `mobile/`, `shared/`, `docs/`)
-- `mobile/app.json` — app name, bundle ID for privacy policy reference
+All source files are at `/tmp/finq-design/finq/project/site/`:
+- `index.html` — read in full
+- `site.css` — read in full
+- `site.js` — read in full
+- `feedback.html` — read in full
+- `privacy.html` — read in full
 
 ---
 
 ## Step-by-step
 
-### 1. Create `website/` directory at repo root
+### 1. Replace `website/` contents
 
+Delete the old files:
+- `website/index.html` (placeholder)
+- `website/privacy.html` (basic version)
+- `website/css/style.css` (old styles)
+- `website/css/` directory
+
+Copy the Claude Design files into `website/`:
 ```
 website/
-├── index.html          ← placeholder (will become landing page later)
-├── privacy.html        ← privacy policy (this task)
-├── css/
-│   └── style.css       ← shared styles
-└── .nojekyll           ← tells GitHub Pages to skip Jekyll processing
+├── index.html          ← from design bundle
+├── feedback.html       ← from design bundle
+├── privacy.html        ← from design bundle
+├── site.css            ← from design bundle
+├── site.js             ← from design bundle
+├── .nojekyll           ← keep existing
 ```
 
-### 2. Write shared styles (`website/css/style.css`)
+### 2. Adapt links
 
-Minimal, clean styles matching the finQ dark brand:
+The design references `../FinQ Prototype.html` in several places (hero CTA, nav "Open app" button, footer). These need to change since there's no prototype on the production site.
 
-- Background: `#0A0A0A`
-- Text: `#F5F5F5`
-- Accent: `#6366F1` (indigo)
-- Font: system font stack (`-apple-system, BlinkMacSystemFont, 'Segoe UI', ...`)
-- Max content width: 720px, centred
-- Responsive (works on mobile browser too)
-- Headings in white, body text in `#A3A3A3`
-- Links in `#6366F1`
+Replace ALL references to `../FinQ Prototype.html` with `#` and change button text:
+- Nav: "Open app" → "Coming soon" (disabled style, or link to App Store placeholder `#coming-soon`)
+- Hero CTA: "Open the prototype" → "Coming to iOS" with a note "App Store — coming soon"
+- Footer: "Open prototype" → remove or change to "Coming soon"
+- Bottom CTA: "Open prototype" → "Coming to iOS"
 
-### 3. Write privacy policy (`website/privacy.html`)
+**Alternative (simpler):** Replace `../FinQ Prototype.html` with `#` everywhere. The buttons will be dead links for now. When the app is on the App Store, we'll update them with the real link.
 
-Standard mobile app privacy policy for a personal finance app. Must cover:
+**Go with the simpler approach** — just replace the href with `#` and keep the button text as-is. Less risk of breaking the design.
 
-**Required sections:**
-- What the app does (personal finance tracking)
-- Data collected (email, financial data: balances, transactions, categories)
-- How data is stored (server: PostgreSQL, device: SQLite, credentials: iOS Keychain via SecureStore)
-- Data sharing (none — no third-party analytics, no ads, no data sales)
-- Authentication (JWT, biometric is local only)
-- Data retention (kept until user deletes account)
-- User rights (can delete all data from Settings, can request account deletion)
-- Children's privacy (not designed for under 13)
-- Contact information (email — use a placeholder like `privacy@finq.app`, the user can update later)
-- Changes to policy (will update this page, effective date shown)
+### 3. Copy files verbatim (with link fix)
 
-**Header:** "finQ — Privacy Policy"
-**Footer:** "Last updated: May 2026" + link back to home
+Copy each file from `/tmp/finq-design/finq/project/site/` to `website/`, applying only the `../FinQ Prototype.html` → `#` replacement. Do NOT modify any other styling, layout, or content.
 
-**Tone:** Simple, clear, not legal jargon. Short paragraphs.
+The CSS and JS files should be copied exactly as-is — they are production-ready.
 
-### 4. Write placeholder index (`website/index.html`)
+### 4. Verify structure
 
-Simple page:
-- "finQ" title
-- "Coming soon" message
-- Link to privacy policy
-- Same dark styling
-
-This will be replaced by the full landing page later.
-
-### 5. Add `.nojekyll` file
-
-Empty file at `website/.nojekyll` — prevents GitHub Pages from running Jekyll.
-
-### 6. Configure GitHub Pages
-
-Add GitHub Actions workflow at `.github/workflows/deploy-website.yml`:
-
-```yaml
-name: Deploy Website
-on:
-  push:
-    branches: [main]
-    paths: ['website/**']
-  workflow_dispatch:
-
-permissions:
-  contents: read
-  pages: write
-  id-token: write
-
-concurrency:
-  group: pages
-  cancel-in-progress: true
-
-jobs:
-  deploy:
-    runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/configure-pages@v5
-      - uses: actions/upload-pages-artifact@v3
-        with:
-          path: website
-      - id: deployment
-        uses: actions/deploy-pages@v4
+```bash
+ls -la website/
+# Should show: index.html, feedback.html, privacy.html, site.css, site.js, .nojekyll
 ```
 
-This deploys only the `website/` directory to GitHub Pages when files in it change on `main`.
-
----
-
-## UI spec
-
-**Privacy policy page:**
-- Dark background, light text
-- finQ logo/title at top (text, not image)
-- Clean typography, generous spacing
-- Sections with clear headings
-- Subtle border between sections
-- Footer with last updated date
-- Mobile-responsive (readable on iPhone Safari)
+Open `website/index.html` in browser to verify it renders correctly with nav, hero, sections, and footer.
 
 ---
 
 ## Verification
 
-Open `website/privacy.html` in browser — should render correctly with dark styling.
-Open `website/index.html` — should show placeholder with link to privacy.
-
 ```bash
-# Quick check files exist
 ls -la website/
-ls -la .github/workflows/
+# All 6 files present
 ```
+
+Open in browser:
+1. `index.html` — hero with device illustration, envelope cards, features, how-it-works, CTA, footer
+2. `feedback.html` — form with reason chips, info card, success state
+3. `privacy.html` — sticky TOC, 9 sections
+4. Toggle dark/light theme — works on all pages
+5. Nav links between pages work
+6. Mobile responsive — hamburger menu on narrow viewport
 
 ---
 
 ## Git
 
-Branch: `feat/task-022-privacy-page`
-Commit message: `feat(website): privacy policy page and GitHub Pages setup (#022)`
+Branch: `feat/task-023-landing-page`
+Commit message: `feat(website): landing page, feedback form, and privacy from Claude Design (#023)`
 
 After completing the task:
 1. Commit all changes
